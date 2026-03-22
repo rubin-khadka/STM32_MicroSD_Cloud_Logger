@@ -26,8 +26,12 @@
 #include "sd_diskio.h"
 #include "sd_functions.h"
 #include "sd_spi.h"
+#include "esp8266.h"
+#include "usart1.h"
 #include "usart2.h"
 #include "dwt.h"
+#include "i2c2.h"
+#include "lcd.h"
 #include "timer2.h"
 /* USER CODE END Includes */
 
@@ -102,17 +106,49 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   TIMER2_Init();
+  USART1_Init();
   USART2_Init();
   DWT_Init();
+  I2C2_Init();
+  LCD_Init();
 
-  USART2_SendString("Project Init!\r\n");
+  // Welcome Message
+  USART2_SendString("============================\n");
+  USART2_SendString("STM32 Project Initialization\n");
+  USART2_SendString("============================\n");
 
-  DWT_Delay_ms(2000);
+  LCD_Clear();
+  LCD_SendString("STM32 PROJECT");
+  LCD_SetCursor(1, 0);
+  LCD_SendString("INITIALIZING...");
+
+  // Initialize ESP8266
+  if(ESP_Init() != ESP8266_OK)
+  {
+    USART2_SendString("Failed to initialize... Check Debug logs\n");
+  }
+  USART2_SendString("ESP8266 Initialized\n");
+
+  LCD_Clear();
+  LCD_SendString("CONNECTING");
+  LCD_SetCursor(1, 5);
+  LCD_SendString("TO WIFI ...");
+
+  // Connect to WiFi
+  char ip_buf[16];
+  if(ESP_ConnectWiFi("mynoobu", "Sarah159!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
+  {
+    USART2_SendString("Failed to connect to wifi...\n");
+  }
+
+  LCD_Clear();
+  LCD_SendString("INITIALIZING");
+  LCD_SetCursor(1, 5);
+  LCD_SendString("SD CARD...");
 
   if(SD_DataLogger_Init() == SD_LOGGER_OK)
   {
     USART2_SendString("SD Logger ready!\r\n");
-
   }
   else
   {
