@@ -27,4 +27,9 @@ void format_float(float value, char *buffer, uint8_t decimal_places, char unit);
 void format_accel_scaled(char *buffer, float ax, float ay, float az, uint8_t decimal_places);
 void format_gyro_scaled(char *buffer, float gx, float gy, float gz, uint8_t decimal_places);
 
+void IntToTwoDigits(uint8_t num, char* str);
+void TemperatureToString(float temp, char* str);
+void FormatTimeString(uint8_t hour, uint8_t minutes, uint8_t seconds, char* buffer);
+void FormatDateString(uint8_t day, uint8_t month, uint8_t year, char* buffer);
+
 #endif /* UTILS_H_ */
