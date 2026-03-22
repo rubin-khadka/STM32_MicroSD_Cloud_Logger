@@ -8,6 +8,7 @@
 #include "mpu6050.h"
 #include "i2c2.h"
 #include "timer2.h"
+#include "usart2.h"
 
 // Global variables for raw and scaled data
 volatile MPU6050_RawData_t mpu6050_raw;
@@ -76,24 +77,24 @@ uint8_t MPU6050_Init(void)
   // Check if device is present
   if(MPU6050_ReadReg(MPU6050_WHO_AM_I, &who_am_i) != I2C_OK)
   {
-    USART1_SendString("Failed to read WHO_AM_I\r\n");
+    USART2_SendString("Failed to read WHO_AM_I\r\n");
     return I2C_ERROR;
   }
 
   if(who_am_i != 0x68)
   {
-    USART1_SendString("Wrong device ID!\r\n");
+    USART2_SendString("Wrong device ID!\r\n");
     return I2C_ERROR;
   }
 
   // Wake up MPU6050 (clear sleep bit)
   if(MPU6050_WriteReg(MPU6050_PWR_MGMT_1, 0x00) != I2C_OK)
   {
-    USART1_SendString("Failed to wake device\r\n");
+    USART2_SendString("Failed to wake device\r\n");
     return I2C_ERROR;
   }
 
-  USART1_SendString("MPU6050 initialized successfully!\r\n");
+  USART2_SendString("MPU6050 initialized successfully!\r\n");
 
   TIMER2_Delay_ms(10);
 

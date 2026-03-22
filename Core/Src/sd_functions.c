@@ -10,6 +10,8 @@
 #include "fatfs.h"
 #include "ff.h"
 #include "ffconf.h"
+#include "usart2.h"
+#include "utils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -70,7 +72,7 @@ int sd_get_space_kb(void)
   *ptr++ = '\n';
   *ptr = '\0';
 
-  USART1_SendString(buffer);
+  USART2_SendString(buffer);
   return FR_OK;
 }
 
@@ -81,28 +83,28 @@ int sd_mount(void)
 
   if(FATFS_LinkDriver((Diskio_drvTypeDef*) &SD_Driver, sd_path) != 0)
   {
-    USART1_SendString("FATFS_LinkDriver failed\n");
+    USART2_SendString("FATFS_LinkDriver failed\n");
     return FR_DISK_ERR;
   }
 
   DSTATUS stat = disk_initialize(0);
   if(stat != 0)
   {
-    USART1_SendString("disk_initialize failed: 0x");
-    USART1_SendHex(stat);
-    USART1_SendString("\r\n");
+    USART2_SendString("disk_initialize failed: 0x");
+    USART2_SendHex(stat);
+    USART2_SendString("\r\n");
     return FR_NOT_READY;
   }
 
   res = f_mount(&fs, sd_path, 1);
   if(res == FR_OK)
   {
-    USART1_SendString("SD card mounted successfully at ");
-    USART1_SendString(sd_path);
-    USART1_SendString("\r\n");
-    USART1_SendString("Card Type: ");
-    USART1_SendString(SD_IsSDHC() ? "SDHC/SDXC" : "SDSC");
-    USART1_SendString("\r\n");
+    USART2_SendString("SD card mounted successfully at ");
+    USART2_SendString(sd_path);
+    USART2_SendString("\r\n");
+    USART2_SendString("Card Type: ");
+    USART2_SendString(SD_IsSDHC() ? "SDHC/SDXC" : "SDSC");
+    USART2_SendString("\r\n");
     sd_get_space_kb();
     return FR_OK;
   }
@@ -110,7 +112,7 @@ int sd_mount(void)
   // Handle no filesystem
   if(res == FR_NO_FILESYSTEM)
   {
-    USART1_SendString("No filesystem found. Attempting format...\r\n");
+    USART2_SendString("No filesystem found. Attempting format...\r\n");
 
     // Unmount first
     f_mount(NULL, sd_path, 1);
@@ -118,68 +120,68 @@ int sd_mount(void)
     // TRY DIFFERENT FORMAT OPTIONS:
 
     // Option A: Simple format with default parameters
-    USART1_SendString("Trying format with default parameters...\r\n");
+    USART2_SendString("Trying format with default parameters...\r\n");
     res = f_mkfs(sd_path, 0, 0);
 
     if(res != FR_OK)
     {
       // Option B: Try with explicit sector size (512 bytes is standard)
-      USART1_SendString("Default format failed (");
-      USART1_SendNumber(res);
-      USART1_SendString("). Trying with 512-byte sectors...\r\n");
+      USART2_SendString("Default format failed (");
+      USART2_SendNumber(res);
+      USART2_SendString("). Trying with 512-byte sectors...\r\n");
       res = f_mkfs(sd_path, 0, 512);
     }
 
     if(res != FR_OK)
     {
       // Option C: Try with 4096-byte sectors (better for large cards)
-      USART1_SendString("512-byte format failed (");
-      USART1_SendNumber(res);
-      USART1_SendString("). Trying with 4096-byte sectors...\r\n");
+      USART2_SendString("512-byte format failed (");
+      USART2_SendNumber(res);
+      USART2_SendString("). Trying with 4096-byte sectors...\r\n");
       res = f_mkfs(sd_path, 0, 4096);
     }
 
     if(res != FR_OK)
     {
-      USART1_SendString("All format attempts failed. Last error: ");
-      USART1_SendNumber(res);
-      USART1_SendString("\r\n");
+      USART2_SendString("All format attempts failed. Last error: ");
+      USART2_SendNumber(res);
+      USART2_SendString("\r\n");
       return res;
     }
 
-    USART1_SendString("Format successful! Remounting...\r\n");
+    USART2_SendString("Format successful! Remounting...\r\n");
 
     // Try mounting again
     res = f_mount(&fs, sd_path, 1);
     if(res == FR_OK)
     {
-      USART1_SendString("SD card formatted and mounted successfully.\r\n");
-      USART1_SendString("Card Type: ");
-      USART1_SendString(SD_IsSDHC() ? "SDHC/SDXC" : "SDSC");
-      USART1_SendString("\r\n");
+      USART2_SendString("SD card formatted and mounted successfully.\r\n");
+      USART2_SendString("Card Type: ");
+      USART2_SendString(SD_IsSDHC() ? "SDHC/SDXC" : "SDSC");
+      USART2_SendString("\r\n");
       sd_get_space_kb();
     }
     else
     {
-      USART1_SendString("Mount failed even after format: ");
-      USART1_SendNumber(res);
-      USART1_SendString("\r\n");
+      USART2_SendString("Mount failed even after format: ");
+      USART2_SendNumber(res);
+      USART2_SendString("\r\n");
     }
     return res;
   }
 
-  USART1_SendString("Mount failed with code: ");
-  USART1_SendNumber(res);
-  USART1_SendString("\r\n");
+  USART2_SendString("Mount failed with code: ");
+  USART2_SendNumber(res);
+  USART2_SendString("\r\n");
   return res;
 }
 
 int sd_unmount(void)
 {
   FRESULT res = f_mount(NULL, sd_path, 1);
-  USART1_SendString("SD card unmounted: ");
-  USART1_SendString((res == FR_OK) ? "OK" : "Failed");
-  USART1_SendString("\r\n");
+  USART2_SendString("SD card unmounted: ");
+  USART2_SendString((res == FR_OK) ? "OK" : "Failed");
+  USART2_SendString("\r\n");
   return res;
 }
 
@@ -233,7 +235,7 @@ int sd_write_file(const char *filename, const char *text)
   *ptr++ = '\n';
   *ptr = '\0';
 
-  USART1_SendString(buffer);
+  USART2_SendString(buffer);
   return (res == FR_OK && bw == strlen(text)) ? FR_OK : FR_DISK_ERR;
 }
 
@@ -291,7 +293,7 @@ int sd_append_file(const char *filename, const char *text)
   *ptr++ = '\n';
   *ptr = '\0';
 
-  USART1_SendString(buffer);
+  USART2_SendString(buffer);
   return (res == FR_OK && bw == strlen(text)) ? FR_OK : FR_DISK_ERR;
 }
 
@@ -303,22 +305,22 @@ int sd_read_file(const char *filename, char *buffer, UINT bufsize, UINT *bytes_r
   FRESULT res = f_open(&file, filename, FA_READ);
   if(res != FR_OK)
   {
-    USART1_SendString("f_open failed with code: ");
-    USART1_SendNumber(res);
-    USART1_SendString("\r\n");
+    USART2_SendString("f_open failed with code: ");
+    USART2_SendNumber(res);
+    USART2_SendString("\r\n");
     return res;
   }
 
-  USART1_SendString("File Opened: ");
-  USART1_SendString(filename);
-  USART1_SendString("\r\n");
+  USART2_SendString("File Opened: ");
+  USART2_SendString(filename);
+  USART2_SendString("\r\n");
 
   res = f_read(&file, buffer, bufsize - 1, bytes_read);
   if(res != FR_OK)
   {
-    USART1_SendString("f_read failed with code: ");
-    USART1_SendNumber(res);
-    USART1_SendString("\r\n");
+    USART2_SendString("f_read failed with code: ");
+    USART2_SendNumber(res);
+    USART2_SendString("\r\n");
     f_close(&file);
     return res;
   }
@@ -328,9 +330,9 @@ int sd_read_file(const char *filename, char *buffer, UINT bufsize, UINT *bytes_r
   res = f_close(&file);
   if(res != FR_OK)
   {
-    USART1_SendString("f_close failed with code: ");
-    USART1_SendNumber(res);
-    USART1_SendString("\r\n");
+    USART2_SendString("f_close failed with code: ");
+    USART2_SendNumber(res);
+    USART2_SendString("\r\n");
     return res;
   }
 
@@ -387,17 +389,17 @@ int sd_read_csv(const char *filename, CsvRecord *records, int max_records, int *
   FRESULT res = f_open(&file, filename, FA_READ);
   if(res != FR_OK)
   {
-    USART1_SendString("Failed to open CSV: ");
-    USART1_SendString(filename);
-    USART1_SendString(" (");
-    USART1_SendNumber(res);
-    USART1_SendString(")\r\n");
+    USART2_SendString("Failed to open CSV: ");
+    USART2_SendString(filename);
+    USART2_SendString(" (");
+    USART2_SendNumber(res);
+    USART2_SendString(")\r\n");
     return res;
   }
 
-  USART1_SendString("Reading CSV: ");
-  USART1_SendString(filename);
-  USART1_SendString("\r\n");
+  USART2_SendString("Reading CSV: ");
+  USART2_SendString(filename);
+  USART2_SendString("\r\n");
 
   while(f_gets(line, sizeof(line), &file) && *record_count < max_records)
   {
@@ -459,7 +461,7 @@ int sd_read_csv(const char *filename, CsvRecord *records, int max_records, int *
     *ptr++ = '\n';
     *ptr = '\0';
 
-    USART1_SendString(buffer);
+    USART2_SendString(buffer);
   }
 
   return FR_OK;
@@ -468,35 +470,35 @@ int sd_read_csv(const char *filename, CsvRecord *records, int max_records, int *
 int sd_delete_file(const char *filename)
 {
   FRESULT res = f_unlink(filename);
-  USART1_SendString("Delete ");
-  USART1_SendString(filename);
-  USART1_SendString(": ");
-  USART1_SendString((res == FR_OK ? "OK" : "Failed"));
-  USART1_SendString("\r\n");
+  USART2_SendString("Delete ");
+  USART2_SendString(filename);
+  USART2_SendString(": ");
+  USART2_SendString((res == FR_OK ? "OK" : "Failed"));
+  USART2_SendString("\r\n");
   return res;
 }
 
 int sd_rename_file(const char *oldname, const char *newname)
 {
   FRESULT res = f_rename(oldname, newname);
-  USART1_SendString("Rename ");
-  USART1_SendString(oldname);
-  USART1_SendString(" to ");
-  USART1_SendString(newname);
-  USART1_SendString(": ");
-  USART1_SendString((res == FR_OK ? "OK" : "Failed"));
-  USART1_SendString("\r\n");
+  USART2_SendString("Rename ");
+  USART2_SendString(oldname);
+  USART2_SendString(" to ");
+  USART2_SendString(newname);
+  USART2_SendString(": ");
+  USART2_SendString((res == FR_OK ? "OK" : "Failed"));
+  USART2_SendString("\r\n");
   return res;
 }
 
 FRESULT sd_create_directory(const char *path)
 {
   FRESULT res = f_mkdir(path);
-  USART1_SendString("Create directory ");
-  USART1_SendString(path);
-  USART1_SendString(": ");
-  USART1_SendString((res == FR_OK ? "OK" : "Failed"));
-  USART1_SendString("\r\n");
+  USART2_SendString("Create directory ");
+  USART2_SendString(path);
+  USART2_SendString(": ");
+  USART2_SendString((res == FR_OK ? "OK" : "Failed"));
+  USART2_SendString("\r\n");
   return res;
 }
 
@@ -509,10 +511,10 @@ void sd_list_directory_recursive(const char *path, int depth)
   {
     // Print indentation
     for(int i = 0; i < depth; i++)
-      USART1_SendString("  ");
-    USART1_SendString("[ERR] Cannot open: ");
-    USART1_SendString(path);
-    USART1_SendString("\r\n");
+      USART2_SendString("  ");
+    USART2_SendString("[ERR] Cannot open: ");
+    USART2_SendString(path);
+    USART2_SendString("\r\n");
     return;
   }
 
@@ -523,9 +525,9 @@ void sd_list_directory_recursive(const char *path, int depth)
       break;
 
     // ADD THIS DEBUG LINE
-    USART1_SendString("Found entry: ");
-    USART1_SendString(fno.fname);
-    USART1_SendString("\r\n");
+    USART2_SendString("Found entry: ");
+    USART2_SendString(fno.fname);
+    USART2_SendString("\r\n");
 
     const char *name = (*fno.fname) ? fno.fname : fno.fname;
 
@@ -535,9 +537,9 @@ void sd_list_directory_recursive(const char *path, int depth)
       {
         // Print indentation
         for(int i = 0; i < depth; i++)
-          USART1_SendString("  ");
-        USART1_SendString(name);
-        USART1_SendString("\r\n");
+          USART2_SendString("  ");
+        USART2_SendString(name);
+        USART2_SendString("\r\n");
 
         char newpath[128];
         snprintf(newpath, sizeof(newpath), "%s/%s", path, name);
@@ -548,15 +550,15 @@ void sd_list_directory_recursive(const char *path, int depth)
     {
       // Print indentation
       for(int i = 0; i < depth; i++)
-        USART1_SendString("  ");
-      USART1_SendString(name);
-      USART1_SendString(" (");
+        USART2_SendString("  ");
+      USART2_SendString(name);
+      USART2_SendString(" (");
 
       char num_buffer[16];
       itoa_32(fno.fsize, num_buffer);
-      USART1_SendString(num_buffer);
+      USART2_SendString(num_buffer);
 
-      USART1_SendString(" bytes)\r\n");
+      USART2_SendString(" bytes)\r\n");
     }
   }
   f_closedir(&dir);
@@ -564,7 +566,7 @@ void sd_list_directory_recursive(const char *path, int depth)
 
 void sd_list_files(void)
 {
-  USART1_SendString("Files on SD Card:\r\n");
+  USART2_SendString("Files on SD Card:\r\n");
   sd_list_directory_recursive(sd_path, 0);
-  USART1_SendString("\r\n\r\n");
+  USART2_SendString("\r\n\r\n");
 }
