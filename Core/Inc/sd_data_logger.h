@@ -1,0 +1,24 @@
+/*
+ * sd_data_logger.h
+ *
+ *  Created on: Mar 3, 2026
+ *      Author: Rubin Khadka
+ */
+
+#ifndef INC_SD_DATA_LOGGER_H_
+#define INC_SD_DATA_LOGGER_H_
+
+#include "stdint.h"
+
+// Return codes
+#define SD_LOGGER_OK        0
+#define SD_LOGGER_ERROR     1
+#define SD_LOGGER_UNINIT    2
+#define SD_LOGGER_BUSY      3
+
+extern volatile uint32_t entry_count;
+
+// Initialize the SD data logger
+uint8_t SD_DataLogger_Init(void);
+
+#endif /* INC_SD_DATA_LOGGER_H_ */
