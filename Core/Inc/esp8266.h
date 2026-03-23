@@ -41,6 +41,16 @@ ESP8266_Status ESP_MQTT_Connect(
     const char *username,
     const char *password,
     uint16_t keepalive);
+
+// SSL version for ThingSpeak
+ESP8266_Status ESP_MQTT_Connect_SSL(
+    const char *broker,
+    uint16_t port,
+    const char *clientID,
+    const char *username,
+    const char *password,
+    uint16_t keepalive);
+
 ESP8266_Status ESP_MQTT_Publish(const char *topic, const char *message, uint8_t qos);
 ESP8266_Status ESP_MQTT_Subscribe(const char *topic, uint8_t qos);
 ESP8266_Status ESP_MQTT_Ping(void);
@@ -49,5 +59,8 @@ ESP8266_Status ESP_MQTT_HandleIncoming(
     uint16_t topic_buf_len,
     char *msg_buffer,
     uint16_t msg_buf_len);
+
+ESP8266_Status ESP_GetFirmwareVersion(char *buffer, uint16_t buffer_len);
+ESP8266_Status ESP_CheckSSLSupport(void);
 
 #endif /* INC_ESP8266_H_ */

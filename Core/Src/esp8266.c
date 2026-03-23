@@ -238,6 +238,40 @@ static void Build_TCP_Connect(char *buffer, uint16_t buf_len, const char *broker
   i += ESP_StrCopy(buffer + i, "\r\n", buf_len - i);
 }
 
+// Build SSL connect command: AT+CIPSTART="SSL","broker",port\r\n
+static void Build_SSL_Connect(char *buffer, uint16_t buf_len, const char *broker, uint16_t port)
+{
+  uint16_t i = 0;
+  char port_str[6];
+  uint8_t p = 0;
+
+  // Convert port number to string
+  if(port == 0)
+  {
+    port_str[p++] = '0';
+  }
+  else
+  {
+    if(port >= 10000)
+      port_str[p++] = '0' + (port / 10000) % 10;
+    if(port >= 1000)
+      port_str[p++] = '0' + (port / 1000) % 10;
+    if(port >= 100)
+      port_str[p++] = '0' + (port / 100) % 10;
+    if(port >= 10)
+      port_str[p++] = '0' + (port / 10) % 10;
+    port_str[p++] = '0' + (port % 10);
+  }
+  port_str[p] = '\0';
+
+  // Build: AT+CIPSTART="SSL","broker",port\r\n
+  i += ESP_StrCopy(buffer + i, "AT+CIPSTART=\"SSL\",\"", buf_len - i);
+  i += ESP_StrCopy(buffer + i, broker, buf_len - i);
+  i += ESP_StrCopy(buffer + i, "\",", buf_len - i);
+  i += ESP_StrCopy(buffer + i, port_str, buf_len - i);
+  i += ESP_StrCopy(buffer + i, "\r\n", buf_len - i);
+}
+
 // ESP8266 Driver Implementation
 ESP8266_ConnectionState ESP_ConnState = ESP8266_DISCONNECTED;
 static char esp_rx_buffer[512];
@@ -330,7 +364,7 @@ ESP8266_ConnectionState ESP_GetConnectionState(void)
 }
 
 // MQTT Functions
-// MQTT connect
+// MQTT connect (TCP version)
 ESP8266_Status ESP_MQTT_Connect(
     const char *broker,
     uint16_t port,
@@ -375,6 +409,58 @@ ESP8266_Status ESP_MQTT_Connect(
     return res;
   }
 
+  return ESP8266_OK;
+}
+
+// MQTT connect (SSL version for ThingSpeak)
+ESP8266_Status ESP_MQTT_Connect_SSL(
+    const char *broker,
+    uint16_t port,
+    const char *clientID,
+    const char *username,
+    const char *password,
+    uint16_t keepalive)
+{
+  char cmd[64];
+  uint8_t packet[128];
+  uint16_t len = 0;
+  ESP8266_Status res;
+
+  // Build SSL connect command
+  Build_SSL_Connect(cmd, sizeof(cmd), broker, port);
+
+  // Step 1: SSL connect to broker
+  USART2_SendString("SSL Connecting...\r\n");
+  res = ESP_SendCommand(cmd, "CONNECT", 10000);  // Longer timeout for SSL
+  if(res != ESP8266_OK)
+  {
+    USART2_SendString("SSL connect failed\r\n");
+    return res;
+  }
+
+  USART2_SendString("SSL Connected\r\n");
+
+  // Step 2: Build MQTT CONNECT packet
+  len = MQTT_BuildConnect(packet, clientID, username, password, keepalive);
+
+  // Step 3: Send packet length to ESP8266
+  ESP_FormatCmdWithNum(cmd, sizeof(cmd), "AT+CIPSEND=%d\r\n", len);
+  res = ESP_SendCommand(cmd, ">", 2000);
+  if(res != ESP8266_OK)
+  {
+    USART2_SendString("CIPSEND failed\r\n");
+    return res;
+  }
+
+  // Step 4: Send the MQTT CONNECT packet and wait for CONNACK
+  res = ESP_SendBinary(packet, len, "\x20\x02\x00\x00", 5000);
+  if(res != ESP8266_OK)
+  {
+    USART2_SendString("CONNACK failed\r\n");
+    return res;
+  }
+
+  USART2_SendString("MQTT Connected\r\n");
   return ESP8266_OK;
 }
 
@@ -775,4 +861,21 @@ static uint16_t MQTT_BuildConnect(
   packet[rem_len_pos] = len - 2;  // Exclude fixed header first 2 bytes
 
   return len;
+}
+
+// Get firmware version
+ESP8266_Status ESP_GetFirmwareVersion(char *buffer, uint16_t buffer_len)
+{
+  ESP8266_Status res = ESP_SendCommand("AT+GMR\r\n", "OK", 2000);
+  if(res == ESP8266_OK)
+  {
+    ESP_StrCopy(buffer, esp_rx_buffer, buffer_len);
+  }
+  return res;
+}
+
+// Check SSL support
+ESP8266_Status ESP_CheckSSLSupport(void)
+{
+  return ESP_SendCommand("AT+CIPSSLCCONF?\r\n", "OK", 2000);
 }

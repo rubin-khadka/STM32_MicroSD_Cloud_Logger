@@ -37,6 +37,7 @@
 #include "dht11.h"
 #include "ds3231.h"
 #include "utils.h"
+#include "tasks.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -180,9 +181,10 @@ int main(void)
 
   TIMER2_Delay_ms(2000);
 
+  // Connect to MQTT
+  MQTT_Init();
+
   DS3231_Time_t current_time;
-  float temperature;
-  char buffer[17];
 
   // Set initial time
   current_time.seconds = 0;
@@ -202,30 +204,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    // Get current time
-    if(DS3231_GetTime(&current_time) == DS3231_OK)
-    {
-      // Format and display time on LCD
-      FormatTimeString(current_time.hour, current_time.minutes, current_time.seconds, buffer);
-      LCD_SetCursor(0, 0);
-      LCD_SendString(buffer);
 
-      LCD_SendString("  ");
-
-      // Format and display date
-      FormatDateString(current_time.dayofmonth, current_time.month, current_time.year, buffer);
-      LCD_SetCursor(1, 0);
-      LCD_SendString(buffer);
-    }
-
-    // Get and display temperature
-    temperature = DS3231_GetTemperature();
-    TemperatureToString(temperature, buffer);
-    LCD_SetCursor(0, 9);
-    LCD_SendString("T:");
-    LCD_SendString(buffer);
-
-    TIMER2_Delay_ms(1000);
   }
   /* USER CODE END 3 */
 }
