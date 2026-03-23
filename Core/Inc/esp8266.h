@@ -13,10 +13,18 @@
 // THINGSPEAK MQTT CONFIGURATION
 #define MQTT_BROKER         "mqtt3.thingspeak.com"
 #define MQTT_PORT           1883
-#define MQTT_CLIENT_ID      "LhcEATYuJxklLjEADTksIhU"
-#define MQTT_USERNAME       "LhcEATYuJxklLjEADTksIhU"
-#define MQTT_PASSWORD       "G31pVa5VFFORLNG9LuexuV6S"
+#define MQTT_CLIENT_ID      "NCwODB4IGScaOjM6PQYaDxA"
+#define MQTT_USERNAME       "NCwODB4IGScaOjM6PQYaDxA"
+#define MQTT_PASSWORD       "+pzQtxMdwTBnIxNmvVLst1tL"
 #define MQTT_KEEPALIVE      60
+
+// Thinkspeak Channel IDs
+#define CHANNEL_DHT11       "3309559"
+#define CHANNEL_MPU6050     "3309560"
+
+// MQTT Topics
+#define TOPIC_DHT11         "channels/" CHANNEL_DHT11 "/publish"
+#define TOPIC_MPU6050       "channels/" CHANNEL_MPU6050 "/publish"
 
 // ESP8266 Status codes
 typedef enum
@@ -35,6 +43,9 @@ typedef enum
   ESP8266_CONNECTED_NO_IP,
   ESP8266_CONNECTED_IP
 } ESP8266_ConnectionState;
+
+// Helper Functions, other file use it too
+uint16_t ESP_StrCopy(char *dest, const char *src, uint16_t n);
 
 // ESP8266 Functions
 ESP8266_Status ESP_Init(void);

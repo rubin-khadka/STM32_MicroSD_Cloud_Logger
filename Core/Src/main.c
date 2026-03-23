@@ -53,9 +53,11 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define DHT11_READ_TICKS  100
-#define MPU_READ_TICKS    5
-#define LCD_UPDATE_TICKS  10
+#define DHT11_READ_TICKS      100
+#define MPU_READ_TICKS        5
+#define LCD_UPDATE_TICKS      10
+#define MQTT_DHT11_PUBLISH    1500
+#define MQTT_MPU6050_PUBLISH  500
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -124,6 +126,8 @@ int main(void)
   uint16_t dht_count = 0;
   uint16_t lcd_count = 0;
   uint16_t mpu_count = 0;
+  uint16_t mqtt_dht11_count = 0;
+  uint16_t mqtt_mpu6050_count = 0;
 
   // Welcome Message
   USART2_SendString("============================\n");
@@ -149,7 +153,7 @@ int main(void)
 
   // Connect to WiFi
   char ip_buf[16];
-  if(ESP_ConnectWiFi("mynoobu", "Sarah159!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
+  if(ESP_ConnectWiFi("xxxxx", "xxxxx!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
   {
     USART2_SendString("Failed to connect to wifi...\n");
   }
@@ -216,7 +220,6 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     // Run Tasks at Different Rates
-
     // Read DHT11 every 1 seconds
     if(dht_count++ >= DHT11_READ_TICKS)
     {
@@ -236,6 +239,20 @@ int main(void)
     {
       Task_LCD_Update();
       lcd_count = 0;
+    }
+
+    // Publish MQTT DHT11 every 15 seconds
+    if(mqtt_dht11_count++ >= MQTT_DHT11_PUBLISH)
+    {
+      Task_MQTT_Publish_DHT11();
+      mqtt_dht11_count = 0;
+    }
+
+    // Publish MQTT MPU6050 every 5 seconds
+    if(mqtt_mpu6050_count++ >= MQTT_MPU6050_PUBLISH)
+    {
+      Task_MQTT_Publish_MPU6050();
+      mqtt_mpu6050_count = 0;
     }
 
     TIMER3_WaitPeriod(); // Heart Beat time check

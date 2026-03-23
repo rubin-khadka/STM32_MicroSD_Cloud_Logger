@@ -81,7 +81,6 @@ static void Float_To_String(float value, char *buffer, uint8_t decimals)
   buffer[j] = '\0';
 }
 
-
 void Task_DHT11_Read(void)
 {
   uint8_t hum1, hum2, temp1, temp2, checksum;
@@ -141,5 +140,88 @@ void Task_MPU6050_Read(void)
   if(MPU6050_ReadAll() == I2C_OK)
   {
     MPU6050_ScaleAll();
+  }
+}
+
+// Publish DHT11 data to ThingSpeak Channel 3309559
+void Task_MQTT_Publish_DHT11(void)
+{
+  char payload[64];
+  char temp_str[10];
+  char hum_str[10];
+  uint8_t i = 0;
+
+  // Convert floats to strings
+  Float_To_String(dht11_temperature, temp_str, 1);
+  Float_To_String(dht11_humidity, hum_str, 1);
+
+  // Build: field1=25.5&field2=60.2
+  i += ESP_StrCopy(payload + i, "field1=", sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, temp_str, sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, "&field2=", sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, hum_str, sizeof(payload) - i);
+
+  USART2_SendString("\r\n[DHT11] Publishing: ");
+  USART2_SendString(payload);
+  USART2_SendString("\r\n");
+
+  if(ESP_MQTT_Publish(TOPIC_DHT11, payload, 0) == ESP8266_OK)
+  {
+    USART2_SendString("[DHT11] Sent to ThingSpeak Channel ");
+    USART2_SendString(CHANNEL_DHT11);
+    USART2_SendString("\r\n");
+  }
+  else
+  {
+    USART2_SendString("[DHT11] Publish failed!\r\n");
+  }
+}
+
+// Publish MPU6050 data to ThingSpeak Channel 3309560
+void Task_MQTT_Publish_MPU6050(void)
+{
+  char payload[128];
+  char ax_str[10], ay_str[10], az_str[10];
+  char gx_str[10], gy_str[10], gz_str[10];
+  uint8_t i = 0;
+
+  // Use the already scaled data from mpu6050_scaled structure
+  extern volatile MPU6050_ScaledData_t mpu6050_scaled;
+
+  // Convert to strings (2 decimal places for sensor data)
+  Float_To_String(mpu6050_scaled.accel_x, ax_str, 2);
+  Float_To_String(mpu6050_scaled.accel_y, ay_str, 2);
+  Float_To_String(mpu6050_scaled.accel_z, az_str, 2);
+  Float_To_String(mpu6050_scaled.gyro_x, gx_str, 2);
+  Float_To_String(mpu6050_scaled.gyro_y, gy_str, 2);
+  Float_To_String(mpu6050_scaled.gyro_z, gz_str, 2);
+
+  // Format: field1=X&field2=Y&field3=Z&field4=GX&field5=GY&field6=GZ
+  i += ESP_StrCopy(payload + i, "field1=", sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, ax_str, sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, "&field2=", sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, ay_str, sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, "&field3=", sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, az_str, sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, "&field4=", sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, gx_str, sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, "&field5=", sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, gy_str, sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, "&field6=", sizeof(payload) - i);
+  i += ESP_StrCopy(payload + i, gz_str, sizeof(payload) - i);
+
+  USART2_SendString("\r\n[MPU6050] Publishing: ");
+  USART2_SendString(payload);
+  USART2_SendString("\r\n");
+
+  if(ESP_MQTT_Publish(TOPIC_MPU6050, payload, 0) == ESP8266_OK)
+  {
+    USART2_SendString("[MPU6050] Sent to ThingSpeak Channel ");
+    USART2_SendString(CHANNEL_MPU6050);
+    USART2_SendString("\r\n");
+  }
+  else
+  {
+    USART2_SendString("[MPU6050] Publish failed!\r\n");
   }
 }

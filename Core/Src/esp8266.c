@@ -69,7 +69,7 @@ static char* ESP_StrStr(const char *haystack, const char *needle)
 }
 
 // Copy string with length limit
-static uint16_t ESP_StrCopy(char *dest, const char *src, uint16_t n)
+uint16_t ESP_StrCopy(char *dest, const char *src, uint16_t n)
 {
   uint16_t i;
   for(i = 0; i < n - 1 && src[i] != '\0'; i++)
