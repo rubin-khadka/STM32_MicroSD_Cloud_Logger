@@ -33,6 +33,7 @@
 #include "i2c2.h"
 #include "lcd.h"
 #include "timer2.h"
+#include "timer3.h"
 #include "mpu6050.h"
 #include "dht11.h"
 #include "ds3231.h"
@@ -52,7 +53,9 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define DHT11_READ_TICKS  100
+#define MPU_READ_TICKS    5
+#define LCD_UPDATE_TICKS  10
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -116,6 +119,11 @@ int main(void)
   DWT_Init();
   I2C2_Init();
   LCD_Init();
+
+  // Loop counters
+  uint16_t dht_count = 0;
+  uint16_t lcd_count = 0;
+  uint16_t mpu_count = 0;
 
   // Welcome Message
   USART2_SendString("============================\n");
@@ -195,6 +203,8 @@ int main(void)
   current_time.month = 3;
   current_time.year = 26;      // 2026
   DS3231_SetTime(&current_time);
+
+  TIMER3_SetupPeriod(10);  // 10ms period
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -205,6 +215,30 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
+    // Run Tasks at Different Rates
+
+    // Read DHT11 every 1 seconds
+    if(dht_count++ >= DHT11_READ_TICKS)
+    {
+      Task_DHT11_Read();
+      dht_count = 0;
+    }
+
+    // Read MPU6050 every 50ms
+    if(mpu_count++ >= MPU_READ_TICKS)
+    {
+      Task_MPU6050_Read();
+      mpu_count = 0;
+    }
+
+    // Update LCD every 100ms
+    if(lcd_count++ >= LCD_UPDATE_TICKS)
+    {
+      Task_LCD_Update();
+      lcd_count = 0;
+    }
+
+    TIMER3_WaitPeriod(); // Heart Beat time check
   }
   /* USER CODE END 3 */
 }

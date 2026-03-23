@@ -11,6 +11,7 @@
 #include "lcd.h"
 #include "esp8266.h"
 #include "usart2.h"
+#include "mpu6050.h"
 
 #define MAX_RETRIES 5
 
@@ -134,3 +135,11 @@ void Task_LCD_Update(void)
   LCD_DisplayReading_Temp(dht11_temperature1, dht11_temperature2, dht11_humidity1, dht11_humidity2);
 }
 
+// Task to read MPU6050 sensor
+void Task_MPU6050_Read(void)
+{
+  if(MPU6050_ReadAll() == I2C_OK)
+  {
+    MPU6050_ScaleAll();
+  }
+}
