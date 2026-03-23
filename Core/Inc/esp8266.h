@@ -10,6 +10,14 @@
 
 #include <stdint.h>
 
+// THINGSPEAK MQTT CONFIGURATION
+#define MQTT_BROKER         "mqtt3.thingspeak.com"
+#define MQTT_PORT           1883
+#define MQTT_CLIENT_ID      "LhcEATYuJxklLjEADTksIhU"
+#define MQTT_USERNAME       "LhcEATYuJxklLjEADTksIhU"
+#define MQTT_PASSWORD       "G31pVa5VFFORLNG9LuexuV6S"
+#define MQTT_KEEPALIVE      60
+
 // ESP8266 Status codes
 typedef enum
 {
@@ -28,12 +36,14 @@ typedef enum
   ESP8266_CONNECTED_IP
 } ESP8266_ConnectionState;
 
-// Public functions
+// ESP8266 Functions
 ESP8266_Status ESP_Init(void);
 ESP8266_Status ESP_ConnectWiFi(const char *ssid, const char *password, char *ip_buffer, uint16_t buffer_len);
+ESP8266_Status ESP_GetFirmwareVersion(char *buffer, uint16_t buffer_len);
 ESP8266_ConnectionState ESP_GetConnectionState(void);
 
-// MQTT functions
+// MQTT Functions
+void MQTT_Init(void);
 ESP8266_Status ESP_MQTT_Connect(
     const char *broker,
     uint16_t port,
@@ -41,16 +51,6 @@ ESP8266_Status ESP_MQTT_Connect(
     const char *username,
     const char *password,
     uint16_t keepalive);
-
-// SSL version for ThingSpeak
-ESP8266_Status ESP_MQTT_Connect_SSL(
-    const char *broker,
-    uint16_t port,
-    const char *clientID,
-    const char *username,
-    const char *password,
-    uint16_t keepalive);
-
 ESP8266_Status ESP_MQTT_Publish(const char *topic, const char *message, uint8_t qos);
 ESP8266_Status ESP_MQTT_Subscribe(const char *topic, uint8_t qos);
 ESP8266_Status ESP_MQTT_Ping(void);
@@ -59,8 +59,5 @@ ESP8266_Status ESP_MQTT_HandleIncoming(
     uint16_t topic_buf_len,
     char *msg_buffer,
     uint16_t msg_buf_len);
-
-ESP8266_Status ESP_GetFirmwareVersion(char *buffer, uint16_t buffer_len);
-ESP8266_Status ESP_CheckSSLSupport(void);
 
 #endif /* INC_ESP8266_H_ */

@@ -141,7 +141,7 @@ int main(void)
 
   // Connect to WiFi
   char ip_buf[16];
-  if(ESP_ConnectWiFi("xxxxx", "xxxxx!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
+  if(ESP_ConnectWiFi("mynoobu", "Sarah159!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
   {
     USART2_SendString("Failed to connect to wifi...\n");
   }

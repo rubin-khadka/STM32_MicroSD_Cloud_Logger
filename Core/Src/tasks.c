@@ -14,23 +14,9 @@
 
 #define MAX_RETRIES 5
 
-// ========== THINGSPEAK MQTT CONFIGURATION ==========
-#define MQTT_BROKER         "mqtt3.thingspeak.com"
-#define MQTT_PORT           1883   // SSL port
-#define MQTT_CLIENT_ID      "LhcEATYuJxklLjEADTksIhU"
-#define MQTT_USERNAME       "LhcEATYuJxklLjEADTksIhU"
-#define MQTT_PASSWORD       "G31pVa5VFFORLNG9LuexuV6S"
-#define MQTT_KEEPALIVE      60
-
-// Topic for publishing
-#define MQTT_TOPIC      "stm32/dht11/sensor"
-
 // Global variables to store DHT11 data
 volatile float dht11_humidity = 0.0f;
 volatile float dht11_temperature = 0.0f;
-
-// MQTT connection state
-static uint8_t mqtt_connected = 0;
 
 static uint8_t dht11_humidity1 = 0;
 static uint8_t dht11_humidity2 = 0;
@@ -94,52 +80,6 @@ static void Float_To_String(float value, char *buffer, uint8_t decimals)
   buffer[j] = '\0';
 }
 
-// Helper function to build JSON payload without sprintf
-static void Build_JSON_Payload(char *buffer, float temperature, float humidity)
-{
-  uint8_t i = 0;
-  char temp_str[10];
-  char hum_str[10];
-
-  // Convert floats to strings
-  Float_To_String(temperature, temp_str, 1);
-  Float_To_String(humidity, hum_str, 1);
-
-  // Build: {"temp":25.5,"hum":60.2}
-  buffer[i++] = '{';
-  buffer[i++] = '"';
-  buffer[i++] = 't';
-  buffer[i++] = 'e';
-  buffer[i++] = 'm';
-  buffer[i++] = 'p';
-  buffer[i++] = '"';
-  buffer[i++] = ':';
-
-  // Copy temperature string
-  uint8_t t = 0;
-  while(temp_str[t] != '\0')
-  {
-    buffer[i++] = temp_str[t++];
-  }
-
-  buffer[i++] = ',';
-  buffer[i++] = '"';
-  buffer[i++] = 'h';
-  buffer[i++] = 'u';
-  buffer[i++] = 'm';
-  buffer[i++] = '"';
-  buffer[i++] = ':';
-
-  // Copy humidity string
-  uint8_t h = 0;
-  while(hum_str[h] != '\0')
-  {
-    buffer[i++] = hum_str[h++];
-  }
-
-  buffer[i++] = '}';
-  buffer[i] = '\0';
-}
 
 void Task_DHT11_Read(void)
 {
@@ -192,54 +132,5 @@ void Task_DHT11_Read(void)
 void Task_LCD_Update(void)
 {
   LCD_DisplayReading_Temp(dht11_temperature1, dht11_temperature2, dht11_humidity1, dht11_humidity2);
-}
-
-// Initialize ThingSpeak MQTT connection
-void MQTT_Init(void)
-{
-  USART2_SendString("\r\n=== ThingSpeak MQTT Init (TCP Port 1883) ===\r\n");
-  USART2_SendString("Broker: ");
-  USART2_SendString(MQTT_BROKER);
-  USART2_SendString(":");
-  USART2_SendString("1883\r\n");
-
-  // Use your existing TCP MQTT connect function
-  if(ESP_MQTT_Connect(MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID,
-     MQTT_USERNAME, MQTT_PASSWORD, MQTT_KEEPALIVE) == ESP8266_OK)
-  {
-    mqtt_connected = 1;
-    USART2_SendString("Connected to ThingSpeak MQTT!\r\n");
-  }
-  else
-  {
-    mqtt_connected = 0;
-    USART2_SendString("Connection failed!\r\n");
-  }
-}
-
-// Publish DHT11 data to HiveMQ
-void Task_MQTT_Publish(void)
-{
-  char payload[64];
-
-  // Only publish if MQTT is connected
-  if(!mqtt_connected)
-  {
-    USART2_SendString("MQTT: Not connected, skipping publish\n");
-    return;
-  }
-
-  // Build JSON payload without sprintf
-  Build_JSON_Payload(payload, dht11_temperature, dht11_humidity);
-
-  // Publish to HiveMQ topic
-  if(ESP_MQTT_Publish(MQTT_TOPIC, payload, 0) == ESP8266_OK)
-  {
-    USART2_SendString("MQTT: Published\n");
-  }
-  else
-  {
-    USART2_SendString("MQTT: Publish failed!\n");
-  }
 }
 

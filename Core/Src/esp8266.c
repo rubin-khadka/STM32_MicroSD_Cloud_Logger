@@ -14,6 +14,7 @@
 #define NULL ((void*)0)
 #endif
 
+/*********************************** Helper Functions *******************************************/
 // Get string length
 static uint16_t ESP_StrLen(const char *str)
 {
@@ -238,39 +239,7 @@ static void Build_TCP_Connect(char *buffer, uint16_t buf_len, const char *broker
   i += ESP_StrCopy(buffer + i, "\r\n", buf_len - i);
 }
 
-// Build SSL connect command: AT+CIPSTART="SSL","broker",port\r\n
-static void Build_SSL_Connect(char *buffer, uint16_t buf_len, const char *broker, uint16_t port)
-{
-  uint16_t i = 0;
-  char port_str[6];
-  uint8_t p = 0;
-
-  // Convert port number to string
-  if(port == 0)
-  {
-    port_str[p++] = '0';
-  }
-  else
-  {
-    if(port >= 10000)
-      port_str[p++] = '0' + (port / 10000) % 10;
-    if(port >= 1000)
-      port_str[p++] = '0' + (port / 1000) % 10;
-    if(port >= 100)
-      port_str[p++] = '0' + (port / 100) % 10;
-    if(port >= 10)
-      port_str[p++] = '0' + (port / 10) % 10;
-    port_str[p++] = '0' + (port % 10);
-  }
-  port_str[p] = '\0';
-
-  // Build: AT+CIPSTART="SSL","broker",port\r\n
-  i += ESP_StrCopy(buffer + i, "AT+CIPSTART=\"SSL\",\"", buf_len - i);
-  i += ESP_StrCopy(buffer + i, broker, buf_len - i);
-  i += ESP_StrCopy(buffer + i, "\",", buf_len - i);
-  i += ESP_StrCopy(buffer + i, port_str, buf_len - i);
-  i += ESP_StrCopy(buffer + i, "\r\n", buf_len - i);
-}
+/*********************************** ESP8266 Functions *******************************************/
 
 // ESP8266 Driver Implementation
 ESP8266_ConnectionState ESP_ConnState = ESP8266_DISCONNECTED;
@@ -280,14 +249,8 @@ static char esp_rx_buffer[512];
 static ESP8266_Status ESP_SendCommand(const char *cmd, const char *ack, uint32_t timeout);
 static ESP8266_Status ESP_SendBinary(uint8_t *bin, uint16_t len, const char *ack, uint32_t timeout);
 static ESP8266_Status ESP_GetIP(char *ip_buffer, uint16_t buffer_len);
-static uint16_t MQTT_BuildConnect(
-    uint8_t *packet,
-    const char *clientID,
-    const char *username,
-    const char *password,
-    uint16_t keepalive);
 
-// Public Functions
+// Initialize ESP8266
 ESP8266_Status ESP_Init(void)
 {
   ESP8266_Status res;
@@ -357,14 +320,216 @@ ESP8266_Status ESP_ConnectWiFi(const char *ssid, const char *password, char *ip_
   return ESP8266_OK;
 }
 
+// Get firmware version
+ESP8266_Status ESP_GetFirmwareVersion(char *buffer, uint16_t buffer_len)
+{
+  ESP8266_Status res = ESP_SendCommand("AT+GMR\r\n", "OK", 2000);
+  if(res == ESP8266_OK)
+  {
+    ESP_StrCopy(buffer, esp_rx_buffer, buffer_len);
+  }
+  return res;
+}
+
 // Get connection state
 ESP8266_ConnectionState ESP_GetConnectionState(void)
 {
   return ESP_ConnState;
 }
 
-// MQTT Functions
-// MQTT connect (TCP version)
+// Static ESP8266 Helper Functions
+static ESP8266_Status ESP_GetIP(char *ip_buffer, uint16_t buffer_len)
+{
+  for(int attempt = 1; attempt <= 3; attempt++)
+  {
+    // Send AT+CIFSR
+    ESP8266_Status result = ESP_SendCommand("AT+CIFSR\r\n", "OK", 5000);
+    if(result != ESP8266_OK)
+    {
+      USART2_SendString("ESP_GetIP: CIFSR failed\r\n");
+      continue;
+    }
+
+    // Parse response for STAIP
+    char *search = esp_rx_buffer;
+    char *ip_start = NULL;
+
+    while((search = ESP_StrStr(search, "STAIP,\"")) != NULL)
+    {
+      ip_start = search + 7;  // Skip "STAIP,""
+      char *end = ip_start;
+      while(*end != '\0' && *end != '"')
+        end++;
+
+      if(*end == '"' && (end - ip_start) < buffer_len)
+      {
+        ESP_StrCopy(ip_buffer, ip_start, (end - ip_start) + 1);
+
+        if(ESP_StrCmp(ip_buffer, "0.0.0.0") == 0)
+        {
+          USART2_SendString("ESP_GetIP: IP not ready\r\n");
+          ESP_ConnState = ESP8266_CONNECTED_NO_IP;
+          TIMER2_Delay_ms(1000);
+          break;
+        }
+
+        USART2_SendString("ESP_GetIP: IP address found\r\n");
+        ESP_ConnState = ESP8266_CONNECTED_IP;
+        return ESP8266_OK;
+      }
+      search += 6;
+    }
+
+    TIMER2_Delay_ms(500);
+  }
+
+  USART2_SendString("ESP_GetIP: Failed\r\n");
+  ESP_ConnState = ESP8266_CONNECTED_NO_IP;
+  return ESP8266_ERROR;
+}
+
+static ESP8266_Status ESP_SendCommand(const char *cmd, const char *ack, uint32_t timeout)
+{
+  uint8_t ch;
+  uint16_t idx = 0;
+  uint32_t tickstart;
+  uint8_t found = 0;
+
+  // Clear buffer
+  for(idx = 0; idx < sizeof(esp_rx_buffer); idx++)
+  {
+    esp_rx_buffer[idx] = 0;
+  }
+  idx = 0;
+
+  if(cmd[ESP_StrLen(cmd) - 1] != '\n')
+  {
+    USART2_SendString("\r\n");
+  }
+
+  tickstart = TIMER2_GetMillis();
+
+  // Send command
+  if(ESP_StrLen(cmd) > 0)
+  {
+    USART1_SendString(cmd);
+  }
+
+  // Wait for response
+  while((TIMER2_GetMillis() - tickstart) < timeout && idx < sizeof(esp_rx_buffer) - 1)
+  {
+    if(USART1_DataAvailable())
+    {
+      ch = USART1_GetChar();
+      esp_rx_buffer[idx++] = ch;
+      esp_rx_buffer[idx] = '\0';
+
+      // Check for ACK
+      if(!found && ESP_StrStr(esp_rx_buffer, ack))
+      {
+        found = 1;
+      }
+
+      // Check for ERROR
+      if(ESP_StrStr(esp_rx_buffer, "ERROR"))
+      {
+        return ESP8266_ERROR;
+      }
+    }
+  }
+
+  if(found)
+    return ESP8266_OK;
+
+  if(idx == 0)
+  {
+    return ESP8266_NO_RESPONSE;
+  }
+
+  return ESP8266_TIMEOUT;
+}
+
+static ESP8266_Status ESP_SendBinary(uint8_t *bin, uint16_t len, const char *ack, uint32_t timeout)
+{
+  uint16_t idx = 0;
+  uint32_t tickstart;
+  uint8_t found = 0;
+  uint16_t i;
+
+  // Clear buffer
+  for(idx = 0; idx < sizeof(esp_rx_buffer); idx++)
+  {
+    esp_rx_buffer[idx] = 0;
+  }
+  idx = 0;
+
+  tickstart = TIMER2_GetMillis();
+
+  // Send binary data
+  for(i = 0; i < len; i++)
+  {
+    USART1_SendChar(bin[i]);
+  }
+
+  // Wait for response
+  while((TIMER2_GetMillis() - tickstart) < timeout && idx < sizeof(esp_rx_buffer) - 1)
+  {
+    if(USART1_DataAvailable())
+    {
+      esp_rx_buffer[idx++] = USART1_GetChar();
+      esp_rx_buffer[idx] = '\0';
+
+      // Check for ACK
+      if(!found && ESP_StrStr(esp_rx_buffer, ack))
+      {
+        found = 1;
+      }
+
+      // Check for ERROR
+      if(ESP_StrStr(esp_rx_buffer, "ERROR"))
+      {
+        return ESP8266_ERROR;
+      }
+    }
+  }
+
+  if(found)
+    return ESP8266_OK;
+
+  return ESP8266_TIMEOUT;
+}
+
+/*********************************** MQTT Functions *******************************************/
+
+static uint16_t MQTT_BuildConnect(
+    uint8_t *packet,
+    const char *clientID,
+    const char *username,
+    const char *password,
+    uint16_t keepalive);
+
+// Initialize ThingSpeak MQTT connection
+void MQTT_Init(void)
+{
+  USART2_SendString("\r\n=== ThingSpeak MQTT Init (TCP Port 1883) ===\r\n");
+  USART2_SendString("Broker: ");
+  USART2_SendString(MQTT_BROKER);
+  USART2_SendString(":");
+  USART2_SendString("1883\r\n");
+
+  // Use your existing TCP MQTT connect function
+  if(ESP_MQTT_Connect(MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD, MQTT_KEEPALIVE)
+      == ESP8266_OK)
+  {
+    USART2_SendString("Connected to ThingSpeak MQTT!\r\n");
+  }
+  else
+  {
+    USART2_SendString("Connection failed!\r\n");
+  }
+}
+
+// MQTT connect, TCP
 ESP8266_Status ESP_MQTT_Connect(
     const char *broker,
     uint16_t port,
@@ -409,58 +574,6 @@ ESP8266_Status ESP_MQTT_Connect(
     return res;
   }
 
-  return ESP8266_OK;
-}
-
-// MQTT connect (SSL version for ThingSpeak)
-ESP8266_Status ESP_MQTT_Connect_SSL(
-    const char *broker,
-    uint16_t port,
-    const char *clientID,
-    const char *username,
-    const char *password,
-    uint16_t keepalive)
-{
-  char cmd[64];
-  uint8_t packet[128];
-  uint16_t len = 0;
-  ESP8266_Status res;
-
-  // Build SSL connect command
-  Build_SSL_Connect(cmd, sizeof(cmd), broker, port);
-
-  // Step 1: SSL connect to broker
-  USART2_SendString("SSL Connecting...\r\n");
-  res = ESP_SendCommand(cmd, "CONNECT", 10000);  // Longer timeout for SSL
-  if(res != ESP8266_OK)
-  {
-    USART2_SendString("SSL connect failed\r\n");
-    return res;
-  }
-
-  USART2_SendString("SSL Connected\r\n");
-
-  // Step 2: Build MQTT CONNECT packet
-  len = MQTT_BuildConnect(packet, clientID, username, password, keepalive);
-
-  // Step 3: Send packet length to ESP8266
-  ESP_FormatCmdWithNum(cmd, sizeof(cmd), "AT+CIPSEND=%d\r\n", len);
-  res = ESP_SendCommand(cmd, ">", 2000);
-  if(res != ESP8266_OK)
-  {
-    USART2_SendString("CIPSEND failed\r\n");
-    return res;
-  }
-
-  // Step 4: Send the MQTT CONNECT packet and wait for CONNACK
-  res = ESP_SendBinary(packet, len, "\x20\x02\x00\x00", 5000);
-  if(res != ESP8266_OK)
-  {
-    USART2_SendString("CONNACK failed\r\n");
-    return res;
-  }
-
-  USART2_SendString("MQTT Connected\r\n");
   return ESP8266_OK;
 }
 
@@ -623,168 +736,7 @@ ESP8266_Status ESP_MQTT_HandleIncoming(
   return ESP8266_ERROR;
 }
 
-// Static Helper Functions
-static ESP8266_Status ESP_GetIP(char *ip_buffer, uint16_t buffer_len)
-{
-  for(int attempt = 1; attempt <= 3; attempt++)
-  {
-    // Send AT+CIFSR
-    ESP8266_Status result = ESP_SendCommand("AT+CIFSR\r\n", "OK", 5000);
-    if(result != ESP8266_OK)
-    {
-      USART2_SendString("ESP_GetIP: CIFSR failed\r\n");
-      continue;
-    }
-
-    // Parse response for STAIP
-    char *search = esp_rx_buffer;
-    char *ip_start = NULL;
-
-    while((search = ESP_StrStr(search, "STAIP,\"")) != NULL)
-    {
-      ip_start = search + 7;  // Skip "STAIP,""
-      char *end = ip_start;
-      while(*end != '\0' && *end != '"')
-        end++;
-
-      if(*end == '"' && (end - ip_start) < buffer_len)
-      {
-        ESP_StrCopy(ip_buffer, ip_start, (end - ip_start) + 1);
-
-        if(ESP_StrCmp(ip_buffer, "0.0.0.0") == 0)
-        {
-          USART2_SendString("ESP_GetIP: IP not ready\r\n");
-          ESP_ConnState = ESP8266_CONNECTED_NO_IP;
-          TIMER2_Delay_ms(1000);
-          break;
-        }
-
-        USART2_SendString("ESP_GetIP: IP address found\r\n");
-        ESP_ConnState = ESP8266_CONNECTED_IP;
-        return ESP8266_OK;
-      }
-      search += 6;
-    }
-
-    TIMER2_Delay_ms(500);
-  }
-
-  USART2_SendString("ESP_GetIP: Failed\r\n");
-  ESP_ConnState = ESP8266_CONNECTED_NO_IP;
-  return ESP8266_ERROR;
-}
-
-static ESP8266_Status ESP_SendCommand(const char *cmd, const char *ack, uint32_t timeout)
-{
-  uint8_t ch;
-  uint16_t idx = 0;
-  uint32_t tickstart;
-  uint8_t found = 0;
-
-  // Clear buffer
-  for(idx = 0; idx < sizeof(esp_rx_buffer); idx++)
-  {
-    esp_rx_buffer[idx] = 0;
-  }
-  idx = 0;
-
-  if(cmd[ESP_StrLen(cmd) - 1] != '\n')
-  {
-    USART2_SendString("\r\n");
-  }
-
-  tickstart = TIMER2_GetMillis();
-
-  // Send command
-  if(ESP_StrLen(cmd) > 0)
-  {
-    USART1_SendString(cmd);
-  }
-
-  // Wait for response
-  while((TIMER2_GetMillis() - tickstart) < timeout && idx < sizeof(esp_rx_buffer) - 1)
-  {
-    if(USART1_DataAvailable())
-    {
-      ch = USART1_GetChar();
-      esp_rx_buffer[idx++] = ch;
-      esp_rx_buffer[idx] = '\0';
-
-      // Check for ACK
-      if(!found && ESP_StrStr(esp_rx_buffer, ack))
-      {
-        found = 1;
-      }
-
-      // Check for ERROR
-      if(ESP_StrStr(esp_rx_buffer, "ERROR"))
-      {
-        return ESP8266_ERROR;
-      }
-    }
-  }
-
-  if(found)
-    return ESP8266_OK;
-
-  if(idx == 0)
-  {
-    return ESP8266_NO_RESPONSE;
-  }
-
-  return ESP8266_TIMEOUT;
-}
-
-static ESP8266_Status ESP_SendBinary(uint8_t *bin, uint16_t len, const char *ack, uint32_t timeout)
-{
-  uint16_t idx = 0;
-  uint32_t tickstart;
-  uint8_t found = 0;
-  uint16_t i;
-
-  // Clear buffer
-  for(idx = 0; idx < sizeof(esp_rx_buffer); idx++)
-  {
-    esp_rx_buffer[idx] = 0;
-  }
-  idx = 0;
-
-  tickstart = TIMER2_GetMillis();
-
-  // Send binary data
-  for(i = 0; i < len; i++)
-  {
-    USART1_SendChar(bin[i]);
-  }
-
-  // Wait for response
-  while((TIMER2_GetMillis() - tickstart) < timeout && idx < sizeof(esp_rx_buffer) - 1)
-  {
-    if(USART1_DataAvailable())
-    {
-      esp_rx_buffer[idx++] = USART1_GetChar();
-      esp_rx_buffer[idx] = '\0';
-
-      // Check for ACK
-      if(!found && ESP_StrStr(esp_rx_buffer, ack))
-      {
-        found = 1;
-      }
-
-      // Check for ERROR
-      if(ESP_StrStr(esp_rx_buffer, "ERROR"))
-      {
-        return ESP8266_ERROR;
-      }
-    }
-  }
-
-  if(found)
-    return ESP8266_OK;
-
-  return ESP8266_TIMEOUT;
-}
-
+// Static MQTT Helper Functions
 static uint16_t MQTT_BuildConnect(
     uint8_t *packet,
     const char *clientID,
@@ -863,19 +815,3 @@ static uint16_t MQTT_BuildConnect(
   return len;
 }
 
-// Get firmware version
-ESP8266_Status ESP_GetFirmwareVersion(char *buffer, uint16_t buffer_len)
-{
-  ESP8266_Status res = ESP_SendCommand("AT+GMR\r\n", "OK", 2000);
-  if(res == ESP8266_OK)
-  {
-    ESP_StrCopy(buffer, esp_rx_buffer, buffer_len);
-  }
-  return res;
-}
-
-// Check SSL support
-ESP8266_Status ESP_CheckSSLSupport(void)
-{
-  return ESP_SendCommand("AT+CIPSSLCCONF?\r\n", "OK", 2000);
-}
