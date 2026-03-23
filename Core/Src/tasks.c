@@ -16,7 +16,7 @@
 
 // ========== THINGSPEAK MQTT CONFIGURATION ==========
 #define MQTT_BROKER         "mqtt3.thingspeak.com"
-#define MQTT_PORT           8883  // SSL port
+#define MQTT_PORT           1883   // SSL port
 #define MQTT_CLIENT_ID      "LhcEATYuJxklLjEADTksIhU"
 #define MQTT_USERNAME       "LhcEATYuJxklLjEADTksIhU"
 #define MQTT_PASSWORD       "G31pVa5VFFORLNG9LuexuV6S"
@@ -195,42 +195,17 @@ void Task_LCD_Update(void)
 }
 
 // Initialize ThingSpeak MQTT connection
-// Initialize ThingSpeak MQTT connection
 void MQTT_Init(void)
 {
-  char version_buf[128];
+  USART2_SendString("\r\n=== ThingSpeak MQTT Init (TCP Port 1883) ===\r\n");
+  USART2_SendString("Broker: ");
+  USART2_SendString(MQTT_BROKER);
+  USART2_SendString(":");
+  USART2_SendString("1883\r\n");
 
-  USART2_SendString("\r\n=== ThingSpeak MQTT Init ===\r\n");
-
-  // Get firmware version
-  USART2_SendString("Firmware: ");
-  if(ESP_GetFirmwareVersion(version_buf, sizeof(version_buf)) == ESP8266_OK)
-  {
-    USART2_SendString(version_buf);
-    USART2_SendString("\r\n");
-  }
-  else
-  {
-    USART2_SendString("Unknown\r\n");
-  }
-
-  // Check SSL support
-  USART2_SendString("Checking SSL support...\r\n");
-  if(ESP_CheckSSLSupport() == ESP8266_OK)
-  {
-    USART2_SendString("SSL supported!\r\n");
-  }
-  else
-  {
-    USART2_SendString("SSL NOT supported!\r\n");
-    USART2_SendString("Will fall back to HTTP API\r\n");
-    mqtt_connected = 0;
-    return;
-  }
-
-  // Try SSL MQTT connection
-  if(ESP_MQTT_Connect_SSL(MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID,
-  MQTT_USERNAME, MQTT_PASSWORD, MQTT_KEEPALIVE) == ESP8266_OK)
+  // Use your existing TCP MQTT connect function
+  if(ESP_MQTT_Connect(MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID,
+     MQTT_USERNAME, MQTT_PASSWORD, MQTT_KEEPALIVE) == ESP8266_OK)
   {
     mqtt_connected = 1;
     USART2_SendString("Connected to ThingSpeak MQTT!\r\n");
@@ -238,8 +213,7 @@ void MQTT_Init(void)
   else
   {
     mqtt_connected = 0;
-    USART2_SendString("SSL MQTT connection failed!\r\n");
-    USART2_SendString("Your firmware may not support SSL\r\n");
+    USART2_SendString("Connection failed!\r\n");
   }
 }
 
