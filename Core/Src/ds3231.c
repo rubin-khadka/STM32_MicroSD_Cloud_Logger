@@ -8,6 +8,8 @@
 #include "ds3231.h"
 #include "i2c2.h"
 
+DS3231_Time_t current_time;
+
 // Internal helper functions
 static uint8_t DS3231_WriteReg(uint8_t reg, uint8_t data);
 static uint8_t DS3231_ReadReg(uint8_t reg, uint8_t *data);
@@ -18,6 +20,7 @@ static uint8_t DS3231_ReadMulti(uint8_t reg, uint8_t *data, uint8_t len);
 uint8_t DS3231_Init(void)
 {
   uint8_t status;
+  uint8_t is_first_boot = 0;
 
   // Read status register to check if oscillator is running
   if(DS3231_ReadReg(DS3231_REG_STATUS, &status) != DS3231_OK)
@@ -26,9 +29,32 @@ uint8_t DS3231_Init(void)
   // Check oscillator stop flag (bit 7 in status register)
   if(status & 0x80)
   {
+    // Oscillator has stopped - this means power was lost or first boot
+    is_first_boot = 1;
+
     // Clear the flag
     status &= ~0x80;
     DS3231_WriteReg(DS3231_REG_STATUS, status);
+  }
+
+  // Only set initial time on first boot OR if time registers are invalid
+  if(is_first_boot)
+  {
+    // Set initial time (only on first power-up or after battery failure)
+    current_time.seconds = 0;
+    current_time.minutes = 39;
+    current_time.hour = 21;
+    current_time.dayofweek = 5;
+    current_time.dayofmonth = 6;
+    current_time.month = 3;
+    current_time.year = 26;  // 2026
+
+    DS3231_SetTime(&current_time);
+  }
+  else
+  {
+    // Read the current time from DS3231
+    DS3231_GetTime(&current_time);
   }
 
   return DS3231_OK;

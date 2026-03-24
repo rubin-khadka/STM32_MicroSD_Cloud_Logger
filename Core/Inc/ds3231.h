@@ -45,6 +45,8 @@ typedef struct {
     uint8_t year;         // 0-99 (2000-2099)
 } DS3231_Time_t;
 
+extern DS3231_Time_t current_time;
+
 // Function Prototypes
 uint8_t DS3231_Init(void);
 uint8_t DS3231_SetTime(DS3231_Time_t *time);

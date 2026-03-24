@@ -12,6 +12,9 @@
 #include "esp8266.h"
 #include "usart2.h"
 #include "mpu6050.h"
+#include "ds3231.h"
+#include "button.h"
+#include "utils.h"
 
 #define MAX_RETRIES 5
 
@@ -129,9 +132,51 @@ void Task_DHT11_Read(void)
   __set_PRIMASK(primask);
 }
 
+// Task to update LCD display
 void Task_LCD_Update(void)
 {
-  LCD_DisplayReading_Temp(dht11_temperature1, dht11_temperature2, dht11_humidity1, dht11_humidity2);
+  DisplayMode_t mode = Button_GetMode();
+
+  switch(mode)
+  {
+    case DISPLAY_MODE_TEMP_HUM:
+      LCD_DisplayReading_Temp(dht11_temperature, dht11_temperature2, dht11_humidity, dht11_humidity2);
+      break;
+
+    case DISPLAY_MODE_ACCEL:
+      LCD_DisplayAccelScaled(mpu6050_scaled.accel_x, mpu6050_scaled.accel_y, mpu6050_scaled.accel_z);
+      break;
+
+    case DISPLAY_MODE_GYRO:
+      LCD_DisplayGyroScaled(mpu6050_scaled.gyro_x, mpu6050_scaled.gyro_y, mpu6050_scaled.gyro_z);
+      break;
+
+    case DISPLAY_MODE_DATE_TIME:
+      // Get current time
+      if(DS3231_GetTime(&current_time) == DS3231_OK)
+      {
+        static char buffer[17];
+        // Format and display time on LCD
+        FormatTimeString(current_time.hour, current_time.minutes, current_time.seconds, buffer);
+        LCD_SetCursor(0, 0);
+        LCD_SendString(buffer);
+
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+
+        // Format and display date
+        FormatDateString(current_time.dayofmonth, current_time.month, current_time.year, buffer);
+        LCD_SetCursor(1, 0);
+        LCD_SendString(buffer);
+      }
+      break;
+
+    default:  // Handles DISPLAY_MODE_COUNT and any invalid values
+      break;
+  }
 }
 
 // Task to read MPU6050 sensor

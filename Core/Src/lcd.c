@@ -140,137 +140,50 @@ void LCD_DisplayError(void)
 void LCD_DisplayReading_Temp(uint8_t temp_int, uint8_t temp_dec, uint8_t hum_int, uint8_t hum_dec)
 {
   // LINE 1: TEMP: XX.X C
-   LCD_SetCursor(0, 0);
-   LCD_SendString("TEMP: ");
-
-   // Format temperature: XX.X
-   if(temp_int >= 10)
-   {
-     LCD_SendData('0' + (temp_int / 10));
-     LCD_SendData('0' + (temp_int % 10));
-   }
-   else
-   {
-     LCD_SendData(' ');
-     LCD_SendData('0' + temp_int);
-   }
-
-   LCD_SendData('.');
-   LCD_SendData('0' + temp_dec);
-   LCD_SendData(' ');
-   LCD_SendData('C');
-   LCD_SendData(' ');
-   LCD_SendData(' ');
-   LCD_SendData(' ');
-   LCD_SendData(' ');
-
-   // LINE 2: HUMD: XX.X %
-   LCD_SetCursor(1, 0);
-   LCD_SendString("HUMD: ");
-
-   // Format humidity: XX.X
-   if(hum_int >= 10)
-   {
-     LCD_SendData('0' + (hum_int / 10));
-     LCD_SendData('0' + (hum_int % 10));
-   }
-   else
-   {
-     LCD_SendData(' ');
-     LCD_SendData('0' + hum_int);
-   }
-
-   LCD_SendData('.');
-   LCD_SendData('0' + hum_dec);
-   LCD_SendData(' ');
-   LCD_SendData('%');
-   LCD_SendData(' ');
-   LCD_SendData(' ');
-   LCD_SendData(' ');
-   LCD_SendData(' ');
- }
-
-// Display temperature
-void LCD_DisplayReading(float temp_ds18b20, float temp_mpu6050)
-{
   LCD_SetCursor(0, 0);
+  LCD_SendString("TEMP: ");
 
-  LCD_SendString("TEMPmpu: ");
-  LCD_DisplayFloat(temp_mpu6050, 2);
+  // Format temperature: XX.X
+  if(temp_int >= 10)
+  {
+    LCD_SendData('0' + (temp_int / 10));
+    LCD_SendData('0' + (temp_int % 10));
+  }
+  else
+  {
+    LCD_SendData(' ');
+    LCD_SendData('0' + temp_int);
+  }
 
+  LCD_SendData('.');
+  LCD_SendData('0' + temp_dec);
+  LCD_SendData(' ');
   LCD_SendData('C');
   LCD_SendData(' ');
   LCD_SendData(' ');
   LCD_SendData(' ');
   LCD_SendData(' ');
 
+  // LINE 2: HUMD: XX.X %
   LCD_SetCursor(1, 0);
+  LCD_SendString("HUMD: ");
 
-  LCD_SendString("TEMPds18: ");
-  LCD_DisplayFloat(temp_ds18b20, 2);
+  // Format humidity: XX.X
+  if(hum_int >= 10)
+  {
+    LCD_SendData('0' + (hum_int / 10));
+    LCD_SendData('0' + (hum_int % 10));
+  }
+  else
+  {
+    LCD_SendData(' ');
+    LCD_SendData('0' + hum_int);
+  }
 
-  LCD_SendData('C');
+  LCD_SendData('.');
+  LCD_SendData('0' + hum_dec);
   LCD_SendData(' ');
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-}
-
-// Helper function to display Integer (raw values) on LCD
-void LCD_DisplayAccel(int16_t ax, int16_t ay, int16_t az)
-{
-  char buf[8];
-
-  // Line 1: AX and AY
-  LCD_SetCursor(0, 0);
-  LCD_SendString("AX:");
-  itoa_16(ax, buf);
-  LCD_SendString(buf);
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-
-  LCD_SetCursor(0, 8);
-  LCD_SendString(" AY:");
-  itoa_16(ay, buf);
-  LCD_SendString(buf);
-
-  // Line 2: AZ
-  LCD_SetCursor(1, 0);
-  LCD_SendString("AZ:");
-  itoa_16(az, buf);
-  LCD_SendString(buf);
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-}
-
-void LCD_DisplayGyro(int16_t gx, int16_t gy, int16_t gz)
-{
-  char buf[8];
-
-  // Line 1: GX and GY
-  LCD_SetCursor(0, 0);
-  LCD_SendString("GX:");
-  itoa_16(gx, buf);
-  LCD_SendString(buf);
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-  LCD_SendData(' ');
-
-  LCD_SetCursor(0, 8);
-  LCD_SendString(" GY:");
-  itoa_16(gy, buf);
-  LCD_SendString(buf);
-
-  // Line 2: GZ
-  LCD_SetCursor(1, 0);
-  LCD_SendString("GZ:");
-  itoa_16(gz, buf);
-  LCD_SendString(buf);
+  LCD_SendData('%');
   LCD_SendData(' ');
   LCD_SendData(' ');
   LCD_SendData(' ');

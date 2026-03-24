@@ -197,18 +197,6 @@ int main(void)
   // Connect to MQTT
   MQTT_Init();
 
-  DS3231_Time_t current_time;
-
-  // Set initial time
-  current_time.seconds = 0;
-  current_time.minutes = 39;
-  current_time.hour = 21;
-  current_time.dayofweek = 5;
-  current_time.dayofmonth = 6;
-  current_time.month = 3;
-  current_time.year = 26;      // 2026
-  DS3231_SetTime(&current_time);
-
   TIMER3_SetupPeriod(10);  // 10ms period
   /* USER CODE END 2 */
 
