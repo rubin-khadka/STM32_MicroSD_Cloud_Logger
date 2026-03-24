@@ -12,9 +12,10 @@
 #include "usart2.h"
 #include "mpu6050.h"
 #include "tasks.h"
+#include "ds3231.h"
 
-#define CSV_FILENAME        "saved_sensor_data.csv"
-#define CSV_HEADER          "Entry,DHT11_C,DHT11_%,AX_g,AY_g,AZ_g,GX_dps,GY_dps,GZ_dps\r\n"
+#define CSV_FILENAME        "sensor_data.csv"
+#define CSV_HEADER          "DateTime,DHT11_C,DHT11_%,AX_g,AY_g,AZ_g,GX_dps,GY_dps,GZ_dps\r\n"
 #define MAX_LINE_LENGTH     128
 
 static uint8_t initialized = 0;
@@ -164,6 +165,41 @@ static char* csv_tokenize(char *str, char delimiter, char **next)
   return token_start;
 }
 
+// Format timestamp from DS3231 into CSV format: "YYYY-MM-DD HH:MM:SS"
+static void format_timestamp(char **ptr, DS3231_Time_t *time)
+{
+  // Year (20YY)
+  *(*ptr)++ = '2';
+  *(*ptr)++ = '0';
+  *(*ptr)++ = '0' + (time->year / 10);
+  *(*ptr)++ = '0' + (time->year % 10);
+  *(*ptr)++ = '-';
+
+  // Month
+  *(*ptr)++ = '0' + (time->month / 10);
+  *(*ptr)++ = '0' + (time->month % 10);
+  *(*ptr)++ = '-';
+
+  // Day
+  *(*ptr)++ = '0' + (time->dayofmonth / 10);
+  *(*ptr)++ = '0' + (time->dayofmonth % 10);
+  *(*ptr)++ = ' ';
+
+  // Hour
+  *(*ptr)++ = '0' + (time->hour / 10);
+  *(*ptr)++ = '0' + (time->hour % 10);
+  *(*ptr)++ = ':';
+
+  // Minute
+  *(*ptr)++ = '0' + (time->minutes / 10);
+  *(*ptr)++ = '0' + (time->minutes % 10);
+  *(*ptr)++ = ':';
+
+  // Second
+  *(*ptr)++ = '0' + (time->seconds / 10);
+  *(*ptr)++ = '0' + (time->seconds % 10);
+}
+
 // Initialize SD data logger
 uint8_t SD_DataLogger_Init(void)
 {
@@ -249,7 +285,7 @@ uint8_t SD_DataLogger_Init(void)
   return SD_LOGGER_OK;
 }
 
-// Save current sensor data to CSV
+// Save current sensor data to CSV with timestamp
 uint8_t SD_DataLogger_SaveEntry(void)
 {
   if(!initialized)
@@ -257,11 +293,20 @@ uint8_t SD_DataLogger_SaveEntry(void)
     return SD_LOGGER_UNINIT;
   }
 
+  DS3231_Time_t current_time;
+
+  // Get current timestamp from DS3231
+  if(DS3231_GetTime(&current_time) != DS3231_OK)
+  {
+    USART2_SendString("Failed to get current time!\r\n");
+    return SD_LOGGER_ERROR;
+  }
+
   char csv_line[MAX_LINE_LENGTH];
   char *ptr = csv_line;
 
-  // Entry number
-  print_csv_int(&ptr, entry_count + 1);  // Start from 1
+  // Timestamp (replaces entry number)
+  format_timestamp(&ptr, &current_time);
   *ptr++ = ',';
 
   // DHT11 temperature with decimal point
