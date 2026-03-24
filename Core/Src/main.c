@@ -39,6 +39,7 @@
 #include "ds3231.h"
 #include "utils.h"
 #include "tasks.h"
+#include "button.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -117,6 +118,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   TIMER2_Init();
+  TIMER4_Init();
   USART1_Init();
   USART2_Init();
   DWT_Init();
@@ -154,7 +156,7 @@ int main(void)
 
   // Connect to WiFi
   char ip_buf[16];
-  if(ESP_ConnectWiFi("xxxxx", "xxxxx!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
+  if(ESP_ConnectWiFi("mynoobu", "Sarah159!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
   {
     USART2_SendString("Failed to connect to wifi...\n");
   }
@@ -196,6 +198,7 @@ int main(void)
 
   // Connect to MQTT
   MQTT_Init();
+  Button_Init();
 
   TIMER3_SetupPeriod(10);  // 10ms period
   /* USER CODE END 2 */

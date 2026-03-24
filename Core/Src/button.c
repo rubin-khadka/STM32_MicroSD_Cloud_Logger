@@ -12,7 +12,7 @@
 #define COOLDOWN_PERIOD_MS 1000  // 1 Second Button Cooldown
 
 // Current display mode
-static volatile DisplayMode_t current_mode = DISPLAY_MODE_TEMP_HUM;
+static volatile DisplayMode_t current_mode = DISPLAY_MODE_DATE_TIME;
 
 // Button states for debouncing
 static volatile uint8_t button1_pressed = 0;  // PA0 - Mode switch

@@ -27,63 +27,6 @@ static uint8_t dht11_humidity2 = 0;
 static uint8_t dht11_temperature1 = 0;
 static uint8_t dht11_temperature2 = 0;
 
-// Helper function to convert float to string without sprintf
-static void Float_To_String(float value, char *buffer, uint8_t decimals)
-{
-  uint8_t is_negative = 0;
-  uint32_t int_part;
-  uint32_t dec_part;
-  uint8_t i = 0;
-  uint8_t j = 0;
-  char temp[12];
-
-  // Handle negative
-  if(value < 0)
-  {
-    is_negative = 1;
-    value = -value;
-  }
-
-  // Get integer and decimal parts
-  int_part = (uint32_t) value;
-  dec_part = (uint32_t) ((value - int_part) * 10);
-
-  // Convert integer part to string (reversed)
-  if(int_part == 0)
-  {
-    temp[i++] = '0';
-  }
-  else
-  {
-    while(int_part > 0 && i < sizeof(temp) - 1)
-    {
-      temp[i++] = '0' + (int_part % 10);
-      int_part /= 10;
-    }
-  }
-
-  // Add negative sign
-  if(is_negative)
-  {
-    buffer[j++] = '-';
-  }
-
-  // Reverse integer part into buffer
-  while(i > 0)
-  {
-    buffer[j++] = temp[--i];
-  }
-
-  // Add decimal point
-  buffer[j++] = '.';
-
-  // Add decimal part
-  buffer[j++] = '0' + dec_part;
-
-  // Add null terminator
-  buffer[j] = '\0';
-}
-
 void Task_DHT11_Read(void)
 {
   uint8_t hum1, hum2, temp1, temp2, checksum;
@@ -166,11 +109,21 @@ void Task_LCD_Update(void)
         LCD_SendString("  ");
         LCD_SendString("  ");
         LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
 
         // Format and display date
         FormatDateString(current_time.dayofmonth, current_time.month, current_time.year, buffer);
         LCD_SetCursor(1, 0);
         LCD_SendString(buffer);
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
+        LCD_SendString("  ");
       }
       break;
 
@@ -197,8 +150,8 @@ void Task_MQTT_Publish_DHT11(void)
   uint8_t i = 0;
 
   // Convert floats to strings
-  Float_To_String(dht11_temperature, temp_str, 1);
-  Float_To_String(dht11_humidity, hum_str, 1);
+  ftoa(dht11_temperature, temp_str, 1);
+  ftoa(dht11_humidity, hum_str, 1);
 
   // Build: field1=25.5&field2=60.2
   i += ESP_StrCopy(payload + i, "field1=", sizeof(payload) - i);
@@ -233,13 +186,13 @@ void Task_MQTT_Publish_MPU6050(void)
   // Use the already scaled data from mpu6050_scaled structure
   extern volatile MPU6050_ScaledData_t mpu6050_scaled;
 
-  // Convert to strings (2 decimal places for sensor data)
-  Float_To_String(mpu6050_scaled.accel_x, ax_str, 2);
-  Float_To_String(mpu6050_scaled.accel_y, ay_str, 2);
-  Float_To_String(mpu6050_scaled.accel_z, az_str, 2);
-  Float_To_String(mpu6050_scaled.gyro_x, gx_str, 2);
-  Float_To_String(mpu6050_scaled.gyro_y, gy_str, 2);
-  Float_To_String(mpu6050_scaled.gyro_z, gz_str, 2);
+  // Convert to strings
+  ftoa(mpu6050_scaled.accel_x, ax_str, 2);
+  ftoa(mpu6050_scaled.accel_y, ay_str, 2);
+  ftoa(mpu6050_scaled.accel_z, az_str, 2);
+  ftoa(mpu6050_scaled.gyro_x, gx_str, 2);
+  ftoa(mpu6050_scaled.gyro_y, gy_str, 2);
+  ftoa(mpu6050_scaled.gyro_z, gz_str, 2);
 
   // Format: field1=X&field2=Y&field3=Z&field4=GX&field5=GY&field6=GZ
   i += ESP_StrCopy(payload + i, "field1=", sizeof(payload) - i);
