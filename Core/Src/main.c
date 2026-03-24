@@ -114,6 +114,7 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SPI1_Init();
+
   /* USER CODE BEGIN 2 */
   TIMER2_Init();
   USART1_Init();
