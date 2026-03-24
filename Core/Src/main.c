@@ -59,6 +59,7 @@
 #define LCD_UPDATE_TICKS      10
 #define MQTT_DHT11_PUBLISH    1500
 #define MQTT_MPU6050_PUBLISH  500
+#define SDCARD_SAVE_TICKS     500
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -131,6 +132,7 @@ int main(void)
   uint16_t mpu_count = 0;
   uint16_t mqtt_dht11_count = 0;
   uint16_t mqtt_mpu6050_count = 0;
+  uint16_t sdcard_count = 0;
 
   // Welcome Message
   USART2_SendString("============================\n");
@@ -212,6 +214,12 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     // Run Tasks at Different Rates
+    // Check buttons status
+    Task_Button_Status();
+
+    // Update feedback timer
+    Task_Feedback_Update();
+
     // Read DHT11 every 1 seconds
     if(dht_count++ >= DHT11_READ_TICKS)
     {
@@ -245,6 +253,14 @@ int main(void)
     {
       Task_MQTT_Publish_MPU6050();
       mqtt_mpu6050_count = 0;
+    }
+
+    // Save data every 5 seconds
+    if(sdcard_count++ >= SDCARD_SAVE_TICKS)  // 500 * 10ms = 5 seconds
+    {
+      // Uncomment to enable 5 sec auto save
+      // Task_SD_DataLogger();
+      sdcard_count = 0;
     }
 
     TIMER3_WaitPeriod(); // Heart Beat time check

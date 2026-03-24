@@ -10,9 +10,11 @@
 #include "timer2.h"
 #include "utils.h"
 #include "usart2.h"
+#include "mpu6050.h"
+#include "tasks.h"
 
 #define CSV_FILENAME        "saved_sensor_data.csv"
-#define CSV_HEADER          "Entry,DS18B20_C,MPU6050_C,DHT11_C,DHT11_%,AX_g,AY_g,AZ_g,GX_dps,GY_dps,GZ_dps\r\n"
+#define CSV_HEADER          "Entry,DHT11_C,DHT11_%,AX_g,AY_g,AZ_g,GX_dps,GY_dps,GZ_dps\r\n"
 #define MAX_LINE_LENGTH     128
 
 static uint8_t initialized = 0;
@@ -245,4 +247,74 @@ uint8_t SD_DataLogger_Init(void)
   USART2_SendString("\r\n");
 
   return SD_LOGGER_OK;
+}
+
+// Save current sensor data to CSV
+uint8_t SD_DataLogger_SaveEntry(void)
+{
+  if(!initialized)
+  {
+    return SD_LOGGER_UNINIT;
+  }
+
+  char csv_line[MAX_LINE_LENGTH];
+  char *ptr = csv_line;
+
+  // Entry number
+  print_csv_int(&ptr, entry_count + 1);  // Start from 1
+  *ptr++ = ',';
+
+  // DHT11 temperature with decimal point
+  format_dht11_data(&ptr, dht11_temperature1, dht11_temperature2);
+  *ptr++ = ',';
+
+  // DHT11 humidity with decimal point
+  format_dht11_data(&ptr, dht11_humidity1, dht11_humidity2);
+  *ptr++ = ',';
+
+  // Accelerometer X (float with 3 decimals for higher precision)
+  print_csv_float(&ptr, mpu6050_scaled.accel_x, 3);
+  *ptr++ = ',';
+
+  // Accelerometer Y
+  print_csv_float(&ptr, mpu6050_scaled.accel_y, 3);
+  *ptr++ = ',';
+
+  // Accelerometer Z
+  print_csv_float(&ptr, mpu6050_scaled.accel_z, 3);
+  *ptr++ = ',';
+
+  // Gyro X (float with 2 decimals)
+  print_csv_float(&ptr, mpu6050_scaled.gyro_x, 2);
+  *ptr++ = ',';
+
+  // Gyro Y
+  print_csv_float(&ptr, mpu6050_scaled.gyro_y, 2);
+  *ptr++ = ',';
+
+  // Gyro Z
+  print_csv_float(&ptr, mpu6050_scaled.gyro_z, 2);
+
+  // End line
+  *ptr++ = '\r';
+  *ptr++ = '\n';
+  *ptr = '\0';
+
+  // Append to CSV file
+  if(sd_append_file(CSV_FILENAME, csv_line) != FR_OK)
+  {
+    USART2_SendString("Failed to append to CSV!\r\n");
+    return SD_LOGGER_ERROR;
+  }
+
+  entry_count++;
+  sd_logger.total_entries = entry_count;
+
+  return SD_LOGGER_OK;
+}
+
+// Get entry count
+uint32_t SD_DataLogger_GetEntryCount(void)
+{
+  return entry_count;
 }
