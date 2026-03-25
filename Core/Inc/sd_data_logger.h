@@ -27,16 +27,10 @@ uint8_t SD_DataLogger_SaveEntry(void);
 // Read all entries and display in formatted table
 uint32_t SD_DataLogger_ReadAll(void);
 
-// Read last N entries
-uint32_t SD_DataLogger_ReadLastN(uint32_t n);
-
 // Get total number of logged entries
 uint32_t SD_DataLogger_GetEntryCount(void);
 
 // Periodic task
 void Task_SD_DataLogger(void);
-
-// Unmount SD card
-void SD_DataLogger_Deinit(void);
 
 #endif /* INC_SD_DATA_LOGGER_H_ */

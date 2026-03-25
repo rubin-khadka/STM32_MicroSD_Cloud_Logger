@@ -406,3 +406,44 @@ void FormatDateString(uint8_t day, uint8_t month, uint8_t year, char *buffer)
   buffer[9] = '0' + (year % 10);
   buffer[10] = '\0';
 }
+
+// Format timestamp as YYYY-MM-DD HH:MM:SS
+void FormatTimestamp(DS3231_Time_t *time, char *buffer, uint8_t buffer_size)
+{
+  if(buffer_size < 20)
+    return;  // Need at least 20 bytes for "YYYY-MM-DD HH:MM:SS"
+
+  uint8_t pos = 0;
+
+  // Year (20YY)
+  buffer[pos++] = '2';
+  buffer[pos++] = '0';
+  buffer[pos++] = '0' + (time->year / 10);
+  buffer[pos++] = '0' + (time->year % 10);
+  buffer[pos++] = '-';
+
+  // Month
+  buffer[pos++] = '0' + (time->month / 10);
+  buffer[pos++] = '0' + (time->month % 10);
+  buffer[pos++] = '-';
+
+  // Day
+  buffer[pos++] = '0' + (time->dayofmonth / 10);
+  buffer[pos++] = '0' + (time->dayofmonth % 10);
+  buffer[pos++] = ' ';
+
+  // Hour
+  buffer[pos++] = '0' + (time->hour / 10);
+  buffer[pos++] = '0' + (time->hour % 10);
+  buffer[pos++] = ':';
+
+  // Minute
+  buffer[pos++] = '0' + (time->minutes / 10);
+  buffer[pos++] = '0' + (time->minutes % 10);
+  buffer[pos++] = ':';
+
+  // Second
+  buffer[pos++] = '0' + (time->seconds / 10);
+  buffer[pos++] = '0' + (time->seconds % 10);
+  buffer[pos] = '\0';
+}

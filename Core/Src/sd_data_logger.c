@@ -28,27 +28,7 @@ static struct
   uint8_t file_exists;
 } sd_logger;
 
-// Helper: Format float with specified width
-static void print_csv_float(char **ptr, float value, uint8_t decimals)
-{
-  char buffer[16];
-  ftoa(value, buffer, decimals);
-  char *s = buffer;
-  while(*s)
-    *(*ptr)++ = *s++;
-}
-
-// Helper: Format integer
-static void print_csv_int(char **ptr, uint32_t value)
-{
-  char buffer[16];
-  itoa_32(value, buffer);
-  char *s = buffer;
-  while(*s)
-    *(*ptr)++ = *s++;
-}
-
-// Format DHT11 data with decimal point (integer part and decimal part)
+// Helper: Format DHT11 data with decimal point (integer part and decimal part)
 static void format_dht11_data(char **ptr, uint8_t integer_part, uint8_t decimal_part)
 {
   char buffer[8];
@@ -78,7 +58,7 @@ static void format_dht11_data(char **ptr, uint8_t integer_part, uint8_t decimal_
 static void print_fixed_width(float value, uint8_t width, uint8_t decimals)
 {
   char buffer[12];
-  ftoa(value, buffer, decimals);
+  ftoa(value, buffer, decimals);  // Use ftoa from utils.c
 
   // Calculate current length
   uint8_t len = 0;
@@ -133,6 +113,7 @@ static float simple_atof(char *str)
   return sign * (result + fraction);
 }
 
+// CSV tokenizer
 static char* csv_tokenize(char *str, char delimiter, char **next)
 {
   if(str == NULL || *str == '\0')
@@ -163,41 +144,6 @@ static char* csv_tokenize(char *str, char delimiter, char **next)
   }
 
   return token_start;
-}
-
-// Format timestamp from DS3231 into CSV format: "YYYY-MM-DD HH:MM:SS"
-static void format_timestamp(char **ptr, DS3231_Time_t *time)
-{
-  // Year (20YY)
-  *(*ptr)++ = '2';
-  *(*ptr)++ = '0';
-  *(*ptr)++ = '0' + (time->year / 10);
-  *(*ptr)++ = '0' + (time->year % 10);
-  *(*ptr)++ = '-';
-
-  // Month
-  *(*ptr)++ = '0' + (time->month / 10);
-  *(*ptr)++ = '0' + (time->month % 10);
-  *(*ptr)++ = '-';
-
-  // Day
-  *(*ptr)++ = '0' + (time->dayofmonth / 10);
-  *(*ptr)++ = '0' + (time->dayofmonth % 10);
-  *(*ptr)++ = ' ';
-
-  // Hour
-  *(*ptr)++ = '0' + (time->hour / 10);
-  *(*ptr)++ = '0' + (time->hour % 10);
-  *(*ptr)++ = ':';
-
-  // Minute
-  *(*ptr)++ = '0' + (time->minutes / 10);
-  *(*ptr)++ = '0' + (time->minutes % 10);
-  *(*ptr)++ = ':';
-
-  // Second
-  *(*ptr)++ = '0' + (time->seconds / 10);
-  *(*ptr)++ = '0' + (time->seconds % 10);
 }
 
 // Initialize SD data logger
@@ -294,6 +240,10 @@ uint8_t SD_DataLogger_SaveEntry(void)
   }
 
   DS3231_Time_t current_time;
+  char csv_line[MAX_LINE_LENGTH];
+  char *ptr = csv_line;
+  char timestamp[20];
+  char temp_buffer[16];
 
   // Get current timestamp from DS3231
   if(DS3231_GetTime(&current_time) != DS3231_OK)
@@ -302,11 +252,13 @@ uint8_t SD_DataLogger_SaveEntry(void)
     return SD_LOGGER_ERROR;
   }
 
-  char csv_line[MAX_LINE_LENGTH];
-  char *ptr = csv_line;
+  // Use FormatTimestamp from utils
+  FormatTimestamp(&current_time, timestamp, sizeof(timestamp));
 
-  // Timestamp (replaces entry number)
-  format_timestamp(&ptr, &current_time);
+  // Copy timestamp to CSV line
+  char *ts = timestamp;
+  while(*ts)
+    *ptr++ = *ts++;
   *ptr++ = ',';
 
   // DHT11 temperature with decimal point
@@ -317,28 +269,42 @@ uint8_t SD_DataLogger_SaveEntry(void)
   format_dht11_data(&ptr, dht11_humidity1, dht11_humidity2);
   *ptr++ = ',';
 
-  // Accelerometer X (float with 3 decimals for higher precision)
-  print_csv_float(&ptr, mpu6050_scaled.accel_x, 3);
+  // Use ftoa from utils for accelerometer data
+  ftoa(mpu6050_scaled.accel_x, temp_buffer, 3);
+  char *s = temp_buffer;
+  while(*s)
+    *ptr++ = *s++;
   *ptr++ = ',';
 
-  // Accelerometer Y
-  print_csv_float(&ptr, mpu6050_scaled.accel_y, 3);
+  ftoa(mpu6050_scaled.accel_y, temp_buffer, 3);
+  s = temp_buffer;
+  while(*s)
+    *ptr++ = *s++;
   *ptr++ = ',';
 
-  // Accelerometer Z
-  print_csv_float(&ptr, mpu6050_scaled.accel_z, 3);
+  ftoa(mpu6050_scaled.accel_z, temp_buffer, 3);
+  s = temp_buffer;
+  while(*s)
+    *ptr++ = *s++;
   *ptr++ = ',';
 
-  // Gyro X (float with 2 decimals)
-  print_csv_float(&ptr, mpu6050_scaled.gyro_x, 2);
+  // Use ftoa from utils for gyroscope data
+  ftoa(mpu6050_scaled.gyro_x, temp_buffer, 2);
+  s = temp_buffer;
+  while(*s)
+    *ptr++ = *s++;
   *ptr++ = ',';
 
-  // Gyro Y
-  print_csv_float(&ptr, mpu6050_scaled.gyro_y, 2);
+  ftoa(mpu6050_scaled.gyro_y, temp_buffer, 2);
+  s = temp_buffer;
+  while(*s)
+    *ptr++ = *s++;
   *ptr++ = ',';
 
-  // Gyro Z
-  print_csv_float(&ptr, mpu6050_scaled.gyro_z, 2);
+  ftoa(mpu6050_scaled.gyro_z, temp_buffer, 2);
+  s = temp_buffer;
+  while(*s)
+    *ptr++ = *s++;
 
   // End line
   *ptr++ = '\r';
@@ -362,4 +328,186 @@ uint8_t SD_DataLogger_SaveEntry(void)
 uint32_t SD_DataLogger_GetEntryCount(void)
 {
   return entry_count;
+}
+
+// Periodic task to log data
+void Task_SD_DataLogger(void)
+{
+  USART2_SendString("Task_SD_DataLogger called\r\n");
+  if(!initialized)
+  {
+    USART2_SendString("Not initialized!\r\n");
+    return;
+  }
+
+  if(SD_DataLogger_SaveEntry() == SD_LOGGER_OK)
+  {
+    USART2_SendString("Logged entry #");
+    USART2_SendNumber(entry_count);
+    USART2_SendString("\r\n");
+  }
+  else
+  {
+    USART2_SendString("Save FAILED!\r\n");
+  }
+}
+
+// Read all data from SD card and display with timestamp
+uint32_t SD_DataLogger_ReadAll(void)
+{
+  if(!initialized)
+  {
+    USART2_SendString("Logger not initialized!\r\n");
+    return 0;
+  }
+
+  FIL file;
+  char line[MAX_LINE_LENGTH];
+  uint32_t lines_read = 0;
+  uint32_t data_line = 0;
+
+  FRESULT res = f_open(&file, CSV_FILENAME, FA_READ);
+  if(res != FR_OK)
+  {
+    USART2_SendString("Failed to open CSV file! Error: ");
+    USART2_SendNumber(res);
+    USART2_SendString("\r\n");
+    return 0;
+  }
+
+  // Print beautiful table header with timestamp
+  USART2_SendString("\r\n");
+  USART2_SendString(
+      "+---------------------+----------+----------+----------+----------+----------+----------+----------+----------+\r\n");
+  USART2_SendString(
+      "|     Timestamp       | DHT11_C  | DHT11_%  |  AX(g)   |  AY(g)   |  AZ(g)   | GX(dps)  | GY(dps)  | GZ(dps)  |\r\n");
+  USART2_SendString(
+      "+---------------------+----------+----------+----------+----------+----------+----------+----------+----------+\r\n");
+
+  // Skip header line
+  f_gets(line, sizeof(line), &file);
+
+  // Read and parse each data line
+  while(f_gets(line, sizeof(line), &file))
+  {
+    // Remove newline characters manually
+    int len = 0;
+    while(line[len] && line[len] != '\n' && line[len] != '\r')
+      len++;
+    line[len] = '\0';
+
+    // Parse CSV
+    char *next = line;
+    char *token;
+    char *timestamp_str = NULL;
+    float dht_temp = 0, dht_hum = 0;
+    float ax = 0, ay = 0, az = 0;
+    float gx = 0, gy = 0, gz = 0;
+
+    int col = 0;
+
+    // Get timestamp as string (first column)
+    timestamp_str = csv_tokenize(next, ',', &next);
+
+    // Get remaining values
+    while(col < 8 && (token = csv_tokenize(next, ',', &next)) != NULL)
+    {
+      float val = simple_atof(token);
+
+      switch(col)
+      {
+        case 0:
+          dht_temp = val;
+          break;
+        case 1:
+          dht_hum = val;
+          break;
+        case 2:
+          ax = val;
+          break;
+        case 3:
+          ay = val;
+          break;
+        case 4:
+          az = val;
+          break;
+        case 5:
+          gx = val;
+          break;
+        case 6:
+          gy = val;
+          break;
+        case 7:
+          gz = val;
+          break;
+      }
+      col++;
+    }
+
+    // Only process if we got all 9 columns (timestamp + 8 values)
+    if(timestamp_str != NULL && col == 8)
+    {
+      data_line++;
+
+      // Print row
+      USART2_SendString("| ");
+
+      // Timestamp (width 19, fixed format "YYYY-MM-DD HH:MM:SS")
+      USART2_SendString(timestamp_str);
+
+      // Pad to exactly 19 characters (timestamp should be exactly that length)
+      int timestamp_len = 0;
+      while(timestamp_str[timestamp_len])
+        timestamp_len++;
+      for(int i = timestamp_len; i < 19; i++)
+        USART2_SendChar(' ');
+
+      USART2_SendString(" | ");
+
+      // DHT11 temperature (1 decimal)
+      print_fixed_width(dht_temp, 8, 1);
+      USART2_SendString(" | ");
+
+      // DHT11 humidity (1 decimal)
+      print_fixed_width(dht_hum, 8, 1);
+      USART2_SendString(" | ");
+
+      // Accelerometer X (3 decimals)
+      print_fixed_width(ax, 8, 3);
+      USART2_SendString(" | ");
+
+      // Accelerometer Y (3 decimals)
+      print_fixed_width(ay, 8, 3);
+      USART2_SendString(" | ");
+
+      // Accelerometer Z (3 decimals)
+      print_fixed_width(az, 8, 3);
+      USART2_SendString(" | ");
+
+      // Gyro X (2 decimals)
+      print_fixed_width(gx, 8, 2);
+      USART2_SendString(" | ");
+
+      // Gyro Y (2 decimals)
+      print_fixed_width(gy, 8, 2);
+      USART2_SendString(" | ");
+
+      // Gyro Z (2 decimals)
+      print_fixed_width(gz, 8, 2);
+      USART2_SendString(" | ");
+
+      USART2_SendString("\r\n");
+      lines_read++;
+    }
+  }
+
+  // Print table footer
+  USART2_SendString(
+      "+---------------------+----------+----------+----------+----------+----------+----------+----------+----------+\r\n");
+  USART2_SendString("Total: ");
+  USART2_SendNumber(lines_read);
+  USART2_SendString(" entries\r\n\r\n");
+
+  f_close(&file);
+  return lines_read;
 }

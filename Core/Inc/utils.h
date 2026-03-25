@@ -9,6 +9,7 @@
 #define UTILS_H_
 
 #include "stdint.h"
+#include "ds3231.h"
 
 // Function Prototypes
 // Integer to string utility functions to display raw values
@@ -28,5 +29,6 @@ void IntToTwoDigits(uint8_t num, char* str);
 void TemperatureToString(float temp, char* str);
 void FormatTimeString(uint8_t hour, uint8_t minutes, uint8_t seconds, char* buffer);
 void FormatDateString(uint8_t day, uint8_t month, uint8_t year, char* buffer);
+void FormatTimestamp(DS3231_Time_t *time, char *buffer, uint8_t buffer_size);
 
 #endif /* UTILS_H_ */
