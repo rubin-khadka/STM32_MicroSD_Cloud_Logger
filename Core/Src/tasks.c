@@ -334,17 +334,16 @@ void Task_Button_Status(void)
     {
       char feedback_str[16];
       itoa_32(entries, feedback_str);
-      Feedback_Show("DATA READ:", feedback_str, 2000);
+      Feedback_Show("DATA READ:", feedback_str, 500);
       USART2_SendString("Read ");
       USART2_SendNumber(entries);
       USART2_SendString(" entries from SD card\r\n");
     }
     else
     {
-      Feedback_Show("NO DATA", "LOG IS EMPTY", 1000);
+      Feedback_Show("NO DATA", "LOG IS EMPTY", 500);
       USART2_SendString("No data found on SD card!\r\n");
     }
-
     g_button3_pressed = 0;
   }
 }

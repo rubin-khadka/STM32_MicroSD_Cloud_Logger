@@ -10,11 +10,11 @@
 
 // Pin definitions
 #define DHT11_GPIO      GPIOB
-#define DHT11_PIN       13
+#define DHT11_PIN       0
 
 // Pin operations
-#define DHT11_HIGH()    (DHT11_GPIO->BSRR = GPIO_BSRR_BS13)
-#define DHT11_LOW()     (DHT11_GPIO->BRR = GPIO_BRR_BR13)
+#define DHT11_HIGH()    (DHT11_GPIO->BSRR = GPIO_BSRR_BS0)
+#define DHT11_LOW()     (DHT11_GPIO->BRR = GPIO_BRR_BR0)
 #define DHT11_READ()    ((DHT11_GPIO->IDR >> DHT11_PIN) & 1)
 
 void DHT11_Init(void)
@@ -23,16 +23,16 @@ void DHT11_Init(void)
   RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
 
   // Set as output, high initially
-  DHT11_GPIO->CRH &= ~(GPIO_CRH_CNF13 | GPIO_CRH_MODE13);
-  DHT11_GPIO->CRH |= GPIO_CRH_MODE13_0;  // Output 10MHz
+  DHT11_GPIO->CRL &= ~(GPIO_CRL_CNF0 | GPIO_CRL_MODE0);
+  DHT11_GPIO->CRL |= GPIO_CRL_MODE0_0;  // Output 10MHz
   DHT11_HIGH();
 }
 
 void DHT11_Start(void)
 {
   // Set as output
-  DHT11_GPIO->CRH &= ~(GPIO_CRH_CNF13 | GPIO_CRH_MODE13);
-  DHT11_GPIO->CRH |= GPIO_CRH_MODE13_0;  // Output
+  DHT11_GPIO->CRL &= ~(GPIO_CRL_CNF0 | GPIO_CRL_MODE0);
+  DHT11_GPIO->CRL |= GPIO_CRL_MODE0_0;  // Output
 
   // Pull LOW for 18ms
   DHT11_LOW();
@@ -43,8 +43,8 @@ void DHT11_Start(void)
   DWT_Delay_us(20);
 
   // Set as input (let sensor respond)
-  DHT11_GPIO->CRH &= ~(GPIO_CRH_CNF13 | GPIO_CRH_MODE13);
-  DHT11_GPIO->CRH |= GPIO_CRH_CNF13_0;  // Input floating
+  DHT11_GPIO->CRL &= ~(GPIO_CRL_CNF0 | GPIO_CRL_MODE0);
+  DHT11_GPIO->CRL |= GPIO_CRL_CNF0_0;  // Input floating
 }
 
 int DHT11_Check_Response(void)
