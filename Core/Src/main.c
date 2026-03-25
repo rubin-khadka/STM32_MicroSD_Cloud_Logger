@@ -158,49 +158,61 @@ int main(void)
 
   // Connect to WiFi
   char ip_buf[16];
-  if(ESP_ConnectWiFi("xxxxx", "xxxxx!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
+  if(ESP_ConnectWiFi("xxxxx", "xxxxxx!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
   {
     USART2_SendString("Failed to connect to wifi...\n");
   }
+
+  LCD_Clear();
+  LCD_SendString("WIFI CONNECTION");
+  LCD_SetCursor(1, 5);
+  LCD_SendString("READY ...");
+
+  TIMER2_Delay_ms(2000);
 
   LCD_Clear();
   LCD_SendString("INITIALIZING");
   LCD_SetCursor(1, 5);
   LCD_SendString("SD CARD...");
 
+  TIMER2_Delay_ms(2000);
+
   if(SD_DataLogger_Init() == SD_LOGGER_OK)
   {
     USART2_SendString("SD Logger ready!\r\n");
+    LCD_Clear();
+    LCD_SendString("SD CARD");
+    LCD_SetCursor(1, 5);
+    LCD_SendString("READY...");
   }
   else
   {
     USART2_SendString("SD Logger init FAILED!\r\n");
   }
 
-  DWT_Delay_ms(2000);
-
   // Initialize sensors
+  DS3231_Init();
   MPU6050_Init();
   DHT11_Init();
 
-  if(DS3231_Init() == DS3231_OK)
-  {
-    LCD_Clear();
-    LCD_SendString("INITIALIZE. . .");
-    LCD_SetCursor(1, 0);
-    LCD_SendString("DS3231 OK");
-  }
-  else
-  {
-    LCD_Clear();
-    LCD_SendString("DS3231 Error");
-  }
-
   TIMER2_Delay_ms(2000);
+
+  LCD_Clear();
+  LCD_SendString("CONNECTING");
+  LCD_SetCursor(1, 5);
+  LCD_SendString("TO MQTT...");
 
   // Connect to MQTT
   MQTT_Init();
+
+  LCD_Clear();
+  LCD_SendString("CONNECTED");
+  LCD_SetCursor(1, 0);
+  LCD_SendString("THINGSPEAK MQTT");
+
   Button_Init();
+
+  TIMER2_Delay_ms(2000);
 
   TIMER3_SetupPeriod(10);  // 10ms period
   /* USER CODE END 2 */
@@ -243,25 +255,25 @@ int main(void)
 
     // Publish MQTT DHT11 every 15 seconds
     if(mqtt_dht11_count++ >= MQTT_DHT11_PUBLISH)
-    {
-      Task_MQTT_Publish_DHT11();
-      mqtt_dht11_count = 0;
-    }
+//    {
+//      Task_MQTT_Publish_DHT11();
+//      mqtt_dht11_count = 0;
+//    }
 
-    // Publish MQTT MPU6050 every 5 seconds
-    if(mqtt_mpu6050_count++ >= MQTT_MPU6050_PUBLISH)
-    {
-      Task_MQTT_Publish_MPU6050();
-      mqtt_mpu6050_count = 0;
-    }
+      // Publish MQTT MPU6050 every 5 seconds
+      if(mqtt_mpu6050_count++ >= MQTT_MPU6050_PUBLISH)
+//    {
+//      Task_MQTT_Publish_MPU6050();
+//      mqtt_mpu6050_count = 0;
+//    }
 
-    // Save data every 5 seconds
-    if(sdcard_count++ >= SDCARD_SAVE_TICKS)  // 500 * 10ms = 5 seconds
-    {
-      // Uncomment to enable 5 sec auto save
-      // Task_SD_DataLogger();
-      sdcard_count = 0;
-    }
+        // Save data every 5 seconds
+        if(sdcard_count++ >= SDCARD_SAVE_TICKS)  // 500 * 10ms = 5 seconds
+        {
+          // Uncomment to enable 5 sec auto save
+          // Task_SD_DataLogger();
+          sdcard_count = 0;
+        }
 
     TIMER3_WaitPeriod(); // Heart Beat time check
   }
