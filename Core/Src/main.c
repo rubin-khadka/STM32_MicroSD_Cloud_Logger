@@ -58,7 +58,7 @@
 #define MPU_READ_TICKS        5
 #define LCD_UPDATE_TICKS      10
 #define MQTT_DHT11_PUBLISH    1500
-#define MQTT_MPU6050_PUBLISH  500
+#define MQTT_MPU6050_PUBLISH  1000
 #define SDCARD_SAVE_TICKS     500
 /* USER CODE END PM */
 
@@ -158,7 +158,7 @@ int main(void)
 
   // Connect to WiFi
   char ip_buf[16];
-  if(ESP_ConnectWiFi("xxxxx", "xxxxxx!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
+  if(ESP_ConnectWiFi("xxxxx", "xxxxx!", ip_buf, sizeof(ip_buf)) != ESP8266_OK)
   {
     USART2_SendString("Failed to connect to wifi...\n");
   }
@@ -255,25 +255,25 @@ int main(void)
 
     // Publish MQTT DHT11 every 15 seconds
     if(mqtt_dht11_count++ >= MQTT_DHT11_PUBLISH)
-//    {
-//      Task_MQTT_Publish_DHT11();
-//      mqtt_dht11_count = 0;
-//    }
+    {
+      Task_MQTT_Publish_DHT11();
+      mqtt_dht11_count = 0;
+    }
 
-      // Publish MQTT MPU6050 every 5 seconds
-      if(mqtt_mpu6050_count++ >= MQTT_MPU6050_PUBLISH)
-//    {
-//      Task_MQTT_Publish_MPU6050();
-//      mqtt_mpu6050_count = 0;
-//    }
+    // Publish MQTT MPU6050 every 5 seconds
+    if(mqtt_mpu6050_count++ >= MQTT_MPU6050_PUBLISH)
+    {
+      Task_MQTT_Publish_MPU6050();
+      mqtt_mpu6050_count = 0;
+    }
 
-        // Save data every 5 seconds
-        if(sdcard_count++ >= SDCARD_SAVE_TICKS)  // 500 * 10ms = 5 seconds
-        {
-          // Uncomment to enable 5 sec auto save
-          // Task_SD_DataLogger();
-          sdcard_count = 0;
-        }
+    // Save data every 5 seconds
+    if(sdcard_count++ >= SDCARD_SAVE_TICKS)  // 500 * 10ms = 5 seconds
+    {
+      // Uncomment to enable 5 sec auto save
+      // Task_SD_DataLogger();
+      sdcard_count = 0;
+    }
 
     TIMER3_WaitPeriod(); // Heart Beat time check
   }
