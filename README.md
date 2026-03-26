@@ -167,7 +167,71 @@ The system uses a **10ms timer-based control loop** with independent counters fo
 🔗 [View TIMER3 Driver (10ms Heartbeat)](https://github.com/rubin-khadka/STM32_MicroSD_Cloud_Logger/blob/main/Core/Src/timer3.c)  
 🔗 [View Button & TIMER4 Driver (Debounce)](https://github.com/rubin-khadka/STM32_MicroSD_Cloud_Logger/blob/main/Core/Src/button.c)
 
-> **Note:** DWT (Data Watchpoint and Trace) is a built-in peripheral in ARM Cortex-M3 cores that provides a cycle counter running at CPU frequency (72MHz). This gives ~13.9ns resolution, making it ideal for generating precise microsecond delays required by the DS18B20 and DHT11 1-Wire protocol. Unlike traditional timer-based delays, DWT does not occupy a dedicated timer peripheral and continues running in the background.
+> **Note:** DWT (Data Watchpoint and Trace) is a built-in peripheral in ARM Cortex-M3 cores that provides a cycle counter running at CPU frequency (72MHz). This gives ~13.9ns resolution, making it ideal for generating precise microsecond delays required by the DHT11 1-Wire protocol. Unlike traditional timer-based delays, DWT does not occupy a dedicated timer peripheral and continues running in the background.
+
+## MQTT Driver
+
+The STM32 implements the **MQTT 3.1.1 protocol** from scratch, handling packet construction and parsing without external libraries. All packets are built manually using custom buffer manipulation functions.
+
+### How MQTT Works
+
+MQTT is a **binary protocol** that uses lightweight fixed and variable headers. Each packet starts with a control byte followed by remaining length:
+- Byte 0: Packet Type + Flags (1 byte) 
+- Byte 1+: Remaining Length (1-4 bytes)
+- Variable Header + Payload (optional)
+
+| Packet | Binary | Purpose |
+|--------|--------|---------|
+| **CONNECT** | `0x10` | Establishes connection with broker |
+| **CONNACK** | `0x20` | Broker acknowledges connection |
+| **PUBLISH** | `0x30` | Sends data to a topic |
+| **SUBSCRIBE** | `0x82` | Requests messages from a topic |
+| **PINGREQ** | `0xC0` | Keeps connection alive |
+
+### ThingSpeak MQTT Broker
+
+ThingSpeak provides a **dedicated MQTT broker** for IoT data logging with:
+- Free account with 4 million messages per year
+- Built-in data visualization and charts
+- Automatic timestamping and data storage
+- REST API and MQTT support
+
+> **Important:** The ESP8266 AT firmware does **NOT** support SSL/TLS on port 8883 (MQTT over TLS). The AT command set only supports plain TCP connections on port 1883 or WebSocket on port 80. Therefore, this implementation uses **unencrypted MQTT on port 1883**.
+
+### Complete Stack
+```
+Application Layer (tasks.c) - Read sensors, format payload, schedule publishes
+↓
+MQTT Protocol (esp8266.c) - CONNECT, PUBLISH packet builder
+↓
+ESP8266 AT Commands (esp8266.c) - TCP connection, data transmission (port 1883)
+↓
+Hardware (STM32 USART1 + ESP8266)
+```
+
+### ThingSpeak MQTT Configuration
+
+```c
+// ThingSpeak MQTT Broker Configuration (Non-SSL, port 1883)
+#define MQTT_BROKER     "mqtt3.thingspeak.com"
+#define MQTT_PORT       1883                    // Plain TCP (ESP8266 AT doesn't support 8883)
+#define MQTT_CLIENT_ID  "YOUR_CLIENT_ID"
+#define MQTT_USERNAME   "YOUR_USERNAME"
+#define MQTT_PASSWORD   "YOUR_PASSWORD"
+#define MQTT_KEEPALIVE  60
+
+// ThingSpeak Channels
+#define CHANNEL_DHT11    "3309559"      // DHT11 Temperature & Humidity
+#define CHANNEL_MPU6050  "3309560"      // MPU6050 Accel & Gyro
+
+// ThingSpeak MQTT Topics (API format)
+// For publishing: channels/CHANNEL_ID/publish
+#define TOPIC_DHT11     "channels/3309559/publish"
+#define TOPIC_MPU6050   "channels/3309560/publish"
+```
+> Note: Publishing every 10-15 seconds automatically keeps the connection alive, eliminating the need for explicit PINGREQ packets. ThingSpeak also provides automatic data storage and visualization.
+
+🔗 [View ESP8266 Driver and MQTT Implementation](https://github.com/rubin-khadka/STM32_MicroSD_Cloud_Logger/blob/main/Core/Src/esp8266.c)  
 
 ## MicroSD Card & FatFS Driver
 
@@ -187,7 +251,6 @@ Low-Level SPI Driver (sd_spi.c) - Raw SPI commands, DMA, timing
 ↓
 Hardware (STM32 SPI1 + SD Card Adapter)
 ```
-
 #### 1. **Low-Level Driver (`sd_spi.c`)**
 - Full SD protocol implementation (CMD0, CMD8, ACMD41, CMD17, CMD24, etc.)
 - SDHC/SDSC detection and handling
@@ -214,7 +277,7 @@ Data is saved to `sensor_data.csv` with the following format:
 ```csv
 DateTime,DHT11_C,DHT11_%,AX_g,AY_g,AZ_g,GX_dps,GY_dps,GZ_dps
 2026-03-26 14:30:45,25.5,60.2,0.012,0.005,9.810,1.23,2.34,0.56
-2026-03-26 14:31:00,25.6,60.3,0.011,0.006,9.812,1.25,2.36,0.5
+2026-03-26 14:31:00,25.6,60.3,0.011,0.006,9.812,1.25,2.36,0.58
 ```
 
 🔗 [View sd_spi.c - Low-Level Driver](https://github.com/rubin-khadka/STM32_MicroSD_Cloud_Logger/blob/main/Core/Src/sd_spi.c)<br>
@@ -226,7 +289,7 @@ DateTime,DHT11_C,DHT11_%,AX_g,AY_g,AZ_g,GX_dps,GY_dps,GZ_dps
 
 ## MPU6050 IMU Driver
 
-The MPU6050 is an 6-axis inertial measurement unit (IMU) with an **I2C interface** (shared with LCD at address 0x68).
+The MPU6050 is an 6-axis inertial measurement unit (IMU) with an **I2C interface**.
 
 The driver provides two ways to read sensor data:
 1. **Raw Data**: Direct 16-bit integer values from registers (±32768 range)
@@ -273,16 +336,41 @@ To ensure the timing is not interrupted, **interrupts are disabled** while commu
 
 🔗 [View DHT11 Driver Source Code](https://github.com/rubin-khadka/STM32_MicroSD_Cloud_Logger/blob/main/Core/Src/dht11.c)
 
+## DS3231 RTC Driver
+
+The DS3231 is a **precision Real-Time Clock (RTC)** with an integrated temperature-compensated crystal oscillator and **I2C interface**.
+The driver provides two ways to access RTC data:
+1. **Time/Date Data**: Current time (hours, minutes, seconds) and date (day, month, year)
+2. **Temperature Data**: Built-in temperature sensor reading (±3°C accuracy)
+
+**Implementation:**
+- **Burst read** of all 7 time registers in a single I2C transaction
+- **BCD conversion** handles register format automatically
+- **Data Flow:** I2C Read (0x00-0x06) → 7 bytes → Convert BCD → Update time structure
+- **Oscillator monitoring** detects power failures via status register
+
+### Output Values
+
+| Measurement | Range | Resolution | Format |
+|-------------|-------|------------|--------|
+| **Time** | 00:00:00 - 23:59:59 | 1 second | HH:MM:SS |
+| **Date** | 01/01/00 - 31/12/99 | 1 day | DD/MM/YY |
+| **Temperature** | -40°C to +85°C | 0.25°C | XX.X°C |
+
+🔗 [View DS3231 Driver Source Code](https://github.com/rubin-khadka/STM32_MicroSD_Cloud_Logger/blob/main/Core/Src/ds3231.c)
+
+> **Note**: LCD display shows **formatted time/date strings** and temperature in physical units. Raw BCD values are automatically converted using internal helper functions. The RTC maintains accurate time even when main power is off using a CR2032 backup battery.
+
 ## Resources
 - [STM32F103 Datasheet](https://www.st.com/resource/en/datasheet/stm32f103c8.pdf)
 - [STM32F103 Reference Manual](https://www.st.com/resource/en/reference_manual/rm0008-stm32f101xx-stm32f102xx-stm32f103xx-stm32f105xx-and-stm32f107xx-advanced-armbased-32bit-mcus-stmicroelectronics.pdf)
 - [DHT11 Sensor Datasheet](https://www.mouser.com/datasheet/2/758/DHT11-Technical-Data-Sheet-Translated-Version-1143054.pdf)
 - [MPU6050 Sensor Datasheet](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf)
+- [RTC DS3231 Datasheet](https://www.analog.com/media/en/technical-documentation/data-sheets/ds3231.pdf)
 - [PCF8574 I2C Backpack Datasheet](https://www.ti.com/lit/ds/symlink/pcf8574.pdf)
 - [ESP8266 AT Command Set](https://docs.espressif.com/projects/esp-at/en/latest/esp32/AT_Command_Set/index.html)
 - [NodeMCU Documentation](https://nodemcu.readthedocs.io/en/release/)
 - [Flashing AT Firmware to NodeMCU](https://docs.ai-thinker.com/en/esp8266/)
-- [RTC DS3231 Datasheet](https://www.analog.com/media/en/technical-documentation/data-sheets/ds3231.pdf)
 
 ## Project Status
 - **Status**: Complete
