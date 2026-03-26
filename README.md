@@ -7,6 +7,16 @@
 [![ESP8266](https://img.shields.io/badge/NodeMCU-ESP8266-orange)](https://www.espressif.com/en/products/socs/esp8266)
 [![MQTT](https://img.shields.io/badge/MQTT-3.1.1-green)](https://mqtt.org/)
 
+## Table of Contents
+- [Project Overview](#project-overview)
+- [Video Demonstrations](#video-demonstrations)
+- [Hardware](#hardware-components)
+- [Task Scheduling](#task-scheduling)
+- [Drivers](#mqtt-driver)
+- [Getting Started](#getting-started)
+- [Resources](#related-projects)
+- [Contact](#contact)
+
 ## Project Overview
 
 The **STM32 Multi-Sensor Data Logger with IoT Connectivity** is a comprehensive embedded system that reads data from multiple sensors, displays real-time information on a 16x2 LCD, logs data to a MicroSD card, and publishes readings to the cloud via Wi-Fi. The system demonstrates professional embedded concepts including sensor data acquisition, data storage, real-time control, and task scheduling without using an RTOS.
@@ -355,11 +365,66 @@ The driver provides two ways to access RTC data:
 |-------------|-------|------------|--------|
 | **Time** | 00:00:00 - 23:59:59 | 1 second | HH:MM:SS |
 | **Date** | 01/01/00 - 31/12/99 | 1 day | DD/MM/YY |
-| **Temperature** | -40°C to +85°C | 0.25°C | XX.X°C |
 
 🔗 [View DS3231 Driver Source Code](https://github.com/rubin-khadka/STM32_MicroSD_Cloud_Logger/blob/main/Core/Src/ds3231.c)
 
 > **Note**: LCD display shows **formatted time/date strings** and temperature in physical units. Raw BCD values are automatically converted using internal helper functions. The RTC maintains accurate time even when main power is off using a CR2032 backup battery.
+
+## Getting Started
+
+### Software Prerequisites
+
+| Software | Version | Purpose |
+|----------|---------|---------|
+| STM32CubeIDE | v1.13.0+ | IDE for development and flashing |
+| Serial Terminal | Any (PuTTY, Arduino IDE, Hterm) | For debugging via USART2 |
+| ESP8266 AT Firmware | Official or AI-Thinker | Must be flashed to NodeMCU first |
+
+### Setting Up the ESP8266
+
+Before connecting to STM32, ensure the NodeMCU has AT firmware:
+
+1. **Test with PC** using USB and serial terminal:
+    ```
+    AT 
+    OK
+
+    AT+CWMODE=1
+    OK
+
+    AT+GMR
+    AT version:...
+    ```
+
+2. If the NodeMCU has Lua firmware, you'll need to **flash AT firmware first**. The AI-Thinker firmware works well with NodeMCU boards.
+
+### Installation
+
+1. Clone the repository
+```bash
+git clone https://github.com/rubin-khadka/STM32_MicroSD_Cloud_Logger.git
+```
+2. Open this project in STM32CubeIDE:
+   - `File` → `Open Projects from File System...`
+   - Select the cloned directory
+   - Click `Finish`
+
+3. Update Configuration
+    - Open `main.c` and update your WiFi credentials:
+    ```c
+    ESP_ConnectWiFi("your_ssid", "your_password", ip_buf, sizeof(ip_buf))
+    ```
+
+4. Build & Flash
+    - Build: `Ctrl+B`
+    - Debug: `F11`
+    - Run: `F8` (Resume)
+
+## Related Projects 
+- [STM32_MultiSensor_MicroSD_Datalogger](https://github.com/rubin-khadka/STM32_MultiSensor_MicroSD_Datalogger)
+- [STM32_ESP8266_DHT11_Thingspeak](https://github.com/rubin-khadka/STM32_ESP8266_DHT11_Thingspeak)
+- [STM32_ESP8266_IP_ATCommand](https://github.com/rubin-khadka/STM32_ESP8266_IP_ATCommand)
+- [STM32_DHT11_MPU6050_LCD](https://github.com/rubin-khadka/STM32_DHT11_MPU6050_LCD) 
 
 ## Resources
 - [STM32F103 Datasheet](https://www.st.com/resource/en/datasheet/stm32f103c8.pdf)
